@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - FoundIT</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .admin-table th, .admin-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .admin-table th {
+            background-color: #f8fafc;
+            color: #4B5563;
+            font-weight: 600;
+        }
+        .admin-table tr:hover {
+            background-color: #f1f5f9;
+        }
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .badge-lost { background: #fee2e2; color: #dc2626; }
+        .badge-found { background: #dcfce7; color: #16a34a; }
+        
+        .item-image {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Found<span>IT</span> Admin</div>
+        <div class="nav-links">
+            <a href="index.html">Exit Admin</a>
+            <button class="btn secondary-btn" onclick="logoutAdmin()">Logout</button>
+        </div>
+    </nav>
+
+    <!-- The mock login gateway has been removed in favor of real authentication -->
+
+    <!-- Dashboard View -->
+    <div id="admin-dashboard-view" class="selection-container active" style="padding-top: 2rem; max-width: 1200px;">
+        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 class="section-title" style="margin-bottom: 0;">Reported Items Database</h2>
+            <button class="btn secondary-btn" onclick="fetchItems()">Refresh Data</button>
+        </div>
+        
+        <div style="width: 100%; overflow-x: auto;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Image</th>
+                        <th>Type</th>
+                        <th>Item Name</th>
+                        <th>Location</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsTableBody">
+                    <tr><td colspan="6" class="text-center" style="padding: 2rem;">Loading items...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+        // Security Check on Load
+        document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('currentRole');
+            if (role !== 'admin') {
+                // Not an admin, kick them out
+                window.location.href = 'index.html';
+            } else {
+                fetchItems();
+            }
+        });
+
+        function logoutAdmin() {
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('currentRole');
+            window.location.href = 'index.html';
+        }
+
+        async function fetchItems() {
+            const tbody = document.getElementById('itemsTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="padding: 2rem;">Loading items...</td></tr>';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/items');
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const items = await response.json();
+                
+                if (items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="padding: 2rem; color: #6B7280;">No items reported yet.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = items.map(item => {
+                    const dateStr = new Date(item.date).toLocaleDateString() + ' ' + new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const badgeClass = item.itemType === 'Lost' ? 'badge-lost' : 'badge-found';
+                    
+                    // Construct image rendering
+                    let imageHtml = '<span style="color: #9CA3AF; font-size: 0.875rem;">No Image</span>';
+                    if (item.image) {
+                        imageHtml = `<img src="http://localhost:5000/uploads/${item.image}" class="item-image" alt="Item photo">`;
+                    }
+
+                    return `
+                        <tr>
+                            <td style="white-space: nowrap; color: #4B5563;">${dateStr}</td>
+                            <td>${imageHtml}</td>
+                            <td><span class="badge ${badgeClass}">${item.itemType || 'Unknown'}</span></td>
+                            <td style="font-weight: 600; color: #111827;">${item.itemName || 'N/A'}</td>
+                            <td>${item.location || 'N/A'}</td>
+                            <td style="max-width: 300px; color: #4B5563;">${item.description || 'N/A'}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="padding: 2rem; color: red;">Error fetching data. Ensure the backend server is running.</td></tr>';
+            }
+        }
+    </script>
+</body>
+</html>

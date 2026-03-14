@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoundIT - Smart Lost & Found</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- ======== 1. Landing View ======== -->
+    <div id="landing-view" class="view-section active">
+        <div class="landing-content">
+            <h1 class="fade-in title">Found<span class="highlight">IT</span></h1>
+            <h2 class="fade-in subtitle slide-up">A Smart Lost & Found Platform for Campus</h2>
+            <p class="fade-in description slide-up-delay">
+                Easily report lost items or find what you're looking for within your college community. A seamless, secure, and fast platform.
+            </p>
+            <button class="btn primary-btn fade-in slide-up-delay-2" onclick="showView('college-selection-view')">Get Started</button>
+        </div>
+    </div>
+
+    <!-- ======== 2. College Selection View ======== -->
+    <div id="college-selection-view" class="view-section hidden">
+        <div class="selection-container">
+            <h2 class="section-title">Select Your College</h2>
+            <div class="card-grid">
+                <div class="card interactive-card" onclick="showView('campus-selection-view')">
+                    <div class="card-icon">🏛️</div>
+                    <h3>Parul University</h3>
+                    <p>Vadodara, Gujarat</p>
+                </div>
+            </div>
+            <button class="btn secondary-btn back-btn" onclick="showView('landing-view')">Back</button>
+        </div>
+    </div>
+
+    <!-- ======== 3. Campus Selection View ======== -->
+    <div id="campus-selection-view" class="view-section hidden">
+        <div class="selection-container">
+            <h2 class="section-title">Select Your Campus</h2>
+            <div class="card-grid">
+                <div class="card interactive-card fade-in-stagger-1" onclick="showView('main-website-view')">
+                    <div class="card-icon">🏢</div>
+                    <h3>PIET</h3>
+                    <p>Parul Institute of Engineering & Technology</p>
+                </div>
+                <div class="card interactive-card fade-in-stagger-2" onclick="showView('main-website-view')">
+                    <div class="card-icon">💻</div>
+                    <h3>PIT</h3>
+                    <p>Parul Institute of Technology</p>
+                </div>
+                <div class="card interactive-card fade-in-stagger-3" onclick="showView('main-website-view')">
+                    <div class="card-icon">💼</div>
+                    <h3>PIM</h3>
+                    <p>Parul Institute of Management</p>
+                </div>
+                <div class="card interactive-card fade-in-stagger-4" onclick="showView('main-website-view')">
+                    <div class="card-icon">🎓</div>
+                    <h3>Other Campus</h3>
+                    <p>Explore other institutes</p>
+                </div>
+            </div>
+            <button class="btn secondary-btn back-btn" onclick="showView('college-selection-view')">Back</button>
+        </div>
+    </div>
+
+    <!-- ======== 4. Main Website View ======== -->
+    <div id="main-website-view" class="view-section hidden">
+        <nav class="navbar">
+            <div class="logo">Found<span>IT</span></div>
+            <div class="nav-links">
+                <a href="#" class="active-link">Home</a>
+                <a href="report.html">Report</a>
+                <a href="#">Items</a>
+                <a href="contact.html">Contact Us</a>
+                <a href="login.html" class="btn login-btn">Login</a>
+            </div>
+        </nav>
+
+        <header class="hero-section fade-in">
+            <div class="hero-content">
+                <h1>Welcome to FoundIT Parul Campus</h1>
+                <p>Did you lose something? Or did you find an item? Help the community by reporting it here.</p>
+                <div class="hero-actions">
+                    <a href="report.html" class="btn primary-btn large-btn">Report Item</a>
+                    <a href="#" class="btn secondary-btn large-btn outline">Browse Items</a>
+                </div>
+            </div>
+        </header>
+
+        <section class="features-section fade-in slide-up">
+            <h2 class="section-title text-center">How It Works</h2>
+            <div class="card-grid features-grid">
+                <div class="card feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <h3>1. Search or Report</h3>
+                    <p>Check if someone found your item or easily report an item you found on campus.</p>
+                </div>
+                <div class="card feature-card">
+                    <div class="feature-icon">🤝</div>
+                    <h3>2. Connect</h3>
+                    <p>Securely connect with the finder or the person who lost the item through our platform.</p>
+                </div>
+                <div class="card feature-card">
+                    <div class="feature-icon">✅</div>
+                    <h3>3. Return</h3>
+                    <p>Meet at a safe campus location and return the lost item to its rightful owner.</p>
+                </div>
+            </div>
+        </section>
+        
+        <footer class="footer">
+            <p>&copy; 2026 FoundIT Platform. Designed for the student community.</p>
+        </footer>
+    </div>
+
+    <script>
+        function showView(viewId) {
+            // Hide all views
+            const views = document.querySelectorAll('.view-section');
+            views.forEach(view => {
+                view.classList.remove('active');
+                view.classList.add('hidden');
+            });
+
+            // Show selected view
+            const selectedView = document.getElementById(viewId);
+            selectedView.classList.remove('hidden');
+            
+            // Small timeout to allow display:block to apply before adding opacity for fade effect
+            setTimeout(() => {
+                selectedView.classList.add('active');
+            }, 10);
+            
+            // Scroll to top when switching views
+            window.scrollTo(0, 0);
+        }
+    </script>
+</body>
+</html>

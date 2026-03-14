@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Item - FoundIT</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Found<span>IT</span></div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="#" class="active-link">Report</a>
+            <a href="#">Items</a>
+            <a href="contact.html">Contact Us</a>
+            <a href="login.html" class="btn login-btn">Login</a>
+        </div>
+    </nav>
+
+    <div class="selection-container" style="padding-top: 3rem; min-height: calc(100vh - 80px);">
+        <h2 class="section-title" style="margin-bottom: 2rem;">Report a Lost or Found Item</h2>
+        
+        <div class="card" style="width: 100%; max-width: 600px; text-align: left; padding: 2rem;">
+            <form id="reportForm" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label style="font-weight: 600;">Type of Report</label>
+                    <select id="itemType" required style="padding: 0.75rem; border-radius: 8px; border: 1px solid #ccc; font-family: inherit;">
+                        <option value="Lost">I lost an item</option>
+                        <option value="Found">I found an item</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label style="font-weight: 600;">Item Name</label>
+                    <input type="text" id="itemName" required placeholder="e.g. Blue Water Bottle, ID Card" style="padding: 0.75rem; border-radius: 8px; border: 1px solid #ccc; font-family: inherit;">
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label style="font-weight: 600;">Location (Where did you lose/find it?)</label>
+                    <input type="text" id="location" required placeholder="e.g. near Library, PIET campus" style="padding: 0.75rem; border-radius: 8px; border: 1px solid #ccc; font-family: inherit;">
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label style="font-weight: 600;">Description/Details</label>
+                    <textarea id="description" rows="4" placeholder="Provide any additional details..." style="padding: 0.75rem; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label style="font-weight: 600;">Upload Image (Optional)</label>
+                    <input type="file" id="image" accept="image/*" style="padding: 0.5rem; font-family: inherit;">
+                </div>
+                
+                <button type="submit" class="btn primary-btn large-btn" style="margin-top: 1rem; width: 100%;">Submit Report</button>
+                <div id="submitMessage" style="text-align: center; margin-top: 1rem; font-weight: 600; display: none;"></div>
+            </form>
+        </div>
+        <a href="index.html" class="btn secondary-btn" style="margin-top: 2rem;">Back to Home</a>
+    </div>
+
+    <script>
+        document.getElementById('reportForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); // prevent page reload
+            
+            const submitMessage = document.getElementById('submitMessage');
+            submitMessage.style.display = 'none';
+
+            // collect form values using FormData
+            const formData = new FormData();
+            formData.append('itemType', document.getElementById('itemType').value);
+            formData.append('itemName', document.getElementById('itemName').value);
+            formData.append('location', document.getElementById('location').value);
+            formData.append('description', document.getElementById('description').value);
+            formData.append('date', new Date().toISOString());
+            
+            const imageFile = document.getElementById('image').files[0];
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+
+            try {
+                // send POST request
+                const response = await fetch('http://localhost:5000/api/items/report', {
+                    method: 'POST',
+                    body: formData // Browser automatically sets Content-Type to multipart/form-data with boundary
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // display success message
+                    submitMessage.textContent = data.message || "Item reported successfully!";
+                    submitMessage.style.color = "green";
+                    submitMessage.style.display = 'block';
+                    
+                    // clear the form
+                    document.getElementById('reportForm').reset();
+                } else {
+                    submitMessage.textContent = data.message || "Failed to report item.";
+                    submitMessage.style.color = "red";
+                    submitMessage.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                submitMessage.textContent = "Network error. Please try again.";
+                submitMessage.style.color = "red";
+                submitMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

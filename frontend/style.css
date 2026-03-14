@@ -1,0 +1,375 @@
+/* -------- Global Setup -------- */
+:root {
+    --primary-color: #4F46E5; /* Indigo */
+    --primary-hover: #4338CA;
+    --secondary-color: #06B6D4; /* Cyan */
+    --text-primary: #1F2937;
+    --text-secondary: #4B5563;
+    --bg-main: #F9FAFB;
+    --bg-card: #FFFFFF;
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background: var(--bg-main);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* -------- Utility Classes -------- */
+.view-section {
+    min-height: 100vh;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+    background: var(--bg-main);
+    z-index: 1;
+}
+
+.view-section.active {
+    opacity: 1;
+    pointer-events: all;
+    z-index: 10;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.highlight {
+    color: var(--primary-color);
+}
+
+.text-center {
+    text-align: center;
+}
+
+/* -------- Buttons -------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 9999px; /* Pill shape */
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+}
+
+.primary-btn {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39);
+}
+
+.primary-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+}
+
+.secondary-btn {
+    background: var(--bg-card);
+    color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(79, 70, 229, 0.1);
+}
+
+.secondary-btn:hover {
+    background: #F3F4F6;
+    transform: translateY(-2px);
+}
+
+.large-btn {
+    padding: 1rem 2.5rem;
+    font-size: 1.125rem;
+}
+
+/* -------- 1. Landing View -------- */
+#landing-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: radial-gradient(circle at center, #ffffff 0%, #f3f4f6 100%);
+}
+
+.landing-content {
+    max-width: 800px;
+    padding: 2rem;
+}
+
+.title {
+    font-size: 5rem;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    margin-bottom: 1rem;
+    color: #111827;
+}
+
+.subtitle {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.description {
+    font-size: 1.25rem;
+    color: #6B7280;
+    margin-bottom: 3rem;
+    line-height: 1.6;
+}
+
+/* -------- 2 & 3. Selection Views (College + Campus) -------- */
+.selection-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    min-height: 100vh;
+}
+
+.section-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 3rem;
+    color: #111827;
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    width: 100%;
+    margin-bottom: 4rem;
+}
+
+.card {
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid rgba(255,255,255,0.5);
+    backdrop-filter: blur(10px);
+}
+
+.interactive-card {
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.interactive-card:hover {
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: var(--shadow-hover);
+    border-color: rgba(79, 70, 229, 0.3);
+}
+
+.card-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+}
+
+.card h3 {
+    font-size: 1.5rem;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.card p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.back-btn {
+    position: absolute;
+    bottom: 2rem;
+    left: 2rem;
+}
+
+/* -------- 4. Main App View -------- */
+#main-website-view {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 5%;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+.logo span {
+    color: var(--primary-color);
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover, .nav-links a.active-link {
+    color: var(--primary-color);
+}
+
+.login-btn {
+    background: #F59E0B; /* Bright Amber */
+    color: white;
+    padding: 0.5rem 1.5rem;
+    box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+    border: none;
+}
+
+.login-btn:hover {
+    background: #D97706;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(245, 158, 11, 0.4);
+    color: white;
+}
+
+.hero-section {
+    padding: 8rem 2rem;
+    text-align: center;
+    background: linear-gradient(to bottom right, #f8fafc, #ede9fe);
+    flex-grow: 1;
+}
+
+.hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.hero-content h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 1.5rem;
+    line-height: 1.2;
+}
+
+.hero-content p {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    margin-bottom: 2.5rem;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+}
+
+.features-section {
+    padding: 6rem 5%;
+    background: white;
+}
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.feature-card {
+    text-align: left;
+    padding: 2rem;
+    transition: transform 0.3s;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+}
+
+.footer {
+    text-align: center;
+    padding: 2rem;
+    background: #111827;
+    color: #9CA3AF;
+}
+
+/* -------- Animations -------- */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 1s ease-out forwards;
+}
+
+.slide-up {
+    animation: slideUp 0.8s ease-out forwards;
+}
+
+.slide-up-delay {
+    opacity: 0;
+    animation: slideUp 0.8s ease-out 0.2s forwards;
+}
+
+.slide-up-delay-2 {
+    opacity: 0;
+    animation: slideUp 0.8s ease-out 0.4s forwards;
+}
+
+.fade-in-stagger-1 { opacity: 0; animation: slideUp 0.6s ease-out 0.1s forwards; }
+.fade-in-stagger-2 { opacity: 0; animation: slideUp 0.6s ease-out 0.2s forwards; }
+.fade-in-stagger-3 { opacity: 0; animation: slideUp 0.6s ease-out 0.3s forwards; }
+.fade-in-stagger-4 { opacity: 0; animation: slideUp 0.6s ease-out 0.4s forwards; }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .title { font-size: 3.5rem; }
+    .subtitle { font-size: 1.5rem; }
+    .description { font-size: 1rem; }
+    .hero-content h1 { font-size: 2.5rem; }
+    .nav-links { display: none; } /* Simplify for mobile in this basic version */
+    .hero-actions { flex-direction: column; }
+    .selection-container { padding: 3rem 1rem; }
+    .back-btn { position: relative; bottom: auto; left: auto; margin-top: 2rem; }
+}

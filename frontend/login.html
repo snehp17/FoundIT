@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - FoundIT</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 80px);
+            padding: 2rem;
+        }
+        .auth-card {
+            background: var(--bg-card);
+            padding: 3rem 2.5rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 450px;
+        }
+        .auth-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        .auth-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+        .input-group {
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .input-group label {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .input-group input {
+            padding: 0.8rem;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        .auth-btn {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1.1rem;
+            margin-top: 1rem;
+        }
+        .auth-switch {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.95rem;
+        }
+        .auth-switch a {
+            color: var(--primary-color);
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .message {
+            text-align: center;
+            margin-top: 1rem;
+            padding: 0.8rem;
+            border-radius: 6px;
+            font-weight: 600;
+            display: none;
+        }
+        .msg-error { background: #fee2e2; color: #dc2626; border: 1px solid #f87171; }
+        .msg-success { background: #dcfce7; color: #16a34a; border: 1px solid #4ade80; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Found<span>IT</span></div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="report.html">Report</a>
+            <a href="#">Items</a>
+            <a href="contact.html">Contact Us</a>
+            <a href="#" class="active-link">Login</a>
+        </div>
+    </nav>
+
+    <div class="auth-container fade-in">
+        <div class="auth-card" id="authBox">
+            
+            <!-- Dynamic Content Injected Here by JS -->
+
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let isLoginView = true;
+        const authBox = document.getElementById('authBox');
+
+        // Render functions
+        function renderLogin() {
+            authBox.innerHTML = `
+                <h2 class="auth-title">Welcome Back</h2>
+                <p class="auth-subtitle">Log in to FoundIT or Admin Dashboard</p>
+                
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="input-group">
+                        <label>Email or Admin ID</label>
+                        <input type="text" id="loginUsername" required placeholder="name@college.edu or Admin ID">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" required placeholder="••••••••">
+                    </div>
+                    
+                    <button type="submit" class="btn primary-btn auth-btn">Login</button>
+                    <div id="authMessage" class="message"></div>
+                </form>
+                
+                <div class="auth-switch">
+                    New to FoundIT? <a onclick="toggleView()">Create an account</a>
+                </div>
+            `;
+        }
+
+        function renderRegister() {
+            authBox.innerHTML = `
+                <h2 class="auth-title">Create Account</h2>
+                <p class="auth-subtitle">Join the FoundIT community</p>
+                
+                <form id="registerForm" onsubmit="handleRegister(event)">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="regName" required placeholder="John Doe">
+                    </div>
+                    <div class="input-group">
+                        <label>Student Email</label>
+                        <input type="email" id="regEmail" required placeholder="john@college.edu">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="regPassword" required placeholder="••••••••">
+                    </div>
+                    
+                    <button type="submit" class="btn primary-btn auth-btn">Register</button>
+                    <div id="authMessage" class="message"></div>
+                </form>
+                
+                <div class="auth-switch">
+                    Already have an account? <a onclick="toggleView()">Log in</a>
+                </div>
+            `;
+        }
+
+        function toggleView() {
+            isLoginView = !isLoginView;
+            if (isLoginView) renderLogin();
+            else renderRegister();
+        }
+
+        function showMessage(text, isError) {
+            const msg = document.getElementById('authMessage');
+            msg.textContent = text;
+            msg.className = 'message ' + (isError ? 'msg-error' : 'msg-success');
+            msg.style.display = 'block';
+        }
+
+        // Action Handlers
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.textContent = 'Logging in...';
+            btn.disabled = true;
+
+            const payload = {
+                usernameOrEmail: document.getElementById('loginUsername').value,
+                password: document.getElementById('loginPassword').value
+            };
+
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(data.message, false);
+                    localStorage.setItem('currentUser', data.name);
+                    localStorage.setItem('currentRole', data.role);
+                    
+                    setTimeout(() => {
+                        if (data.role === 'admin') {
+                            window.location.href = 'admin.html';
+                        } else {
+                            window.location.href = 'index.html';
+                        }
+                    }, 1000);
+                } else {
+                    showMessage(data.message || "Login failed", true);
+                    btn.textContent = 'Login';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                console.error(err);
+                showMessage("Network error linking to server.", true);
+                btn.textContent = 'Login';
+                btn.disabled = false;
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.textContent = 'Registering...';
+            btn.disabled = true;
+
+            const payload = {
+                name: document.getElementById('regName').value,
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPassword').value
+            };
+
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(data.message + ". You can now log in.", false);
+                    setTimeout(() => {
+                        toggleView();
+                    }, 1500);
+                } else {
+                    showMessage(data.message || "Registration failed", true);
+                    btn.textContent = 'Register';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                console.error(err);
+                showMessage("Network error linking to server.", true);
+                btn.textContent = 'Register';
+                btn.disabled = false;
+            }
+        }
+
+        // Init
+        renderLogin();
+    </script>
+</body>
+</html>
