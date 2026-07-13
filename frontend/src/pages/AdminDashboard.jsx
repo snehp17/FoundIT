@@ -5,7 +5,7 @@ import AppLayout from '../components/AppLayout'
 import api from '../api'
 import {
   Building2, Users, FileText, CheckCircle2,
-  MapPin, ChevronRight, Eye, Trash2, Mail, Phone, Shield, X
+  MapPin, ChevronRight, Eye, Trash2, Mail, Phone, Shield, X, Edit2
 } from 'lucide-react'
 
 const kpisTemplate = [
@@ -32,6 +32,17 @@ export default function AdminDashboard() {
   const [modalLoading, setModalLoading] = useState(false)
   const [modalError, setModalError] = useState('')
 
+  // Edit University Modal State
+  const [editingUniversity, setEditingUniversity] = useState(null)
+  const [editForm, setEditForm] = useState({
+    name: '',
+    code: '',
+    allowed_domain: '',
+    allow_personal_emails: false,
+  })
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState('')
+
   const fetchData = async () => {
     try {
       const [uniRes, reqRes] = await Promise.all([
@@ -40,7 +51,7 @@ export default function AdminDashboard() {
       ]);
       
       setUniversities(uniRes.data || []);
-      setRequests(reqRes.data || []);
+      setRequests((reqRes.data || []).filter(r => r.status === 'Pending'));
 
       setKpis(prev => [
         { ...prev[0], value: uniRes.data.length.toString() },
@@ -79,6 +90,34 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Error deleting university', err);
       alert('Failed to delete university');
+    }
+  }
+
+  const handleEditClick = (uni) => {
+    setEditingUniversity(uni)
+    setEditForm({
+      name: uni.name,
+      code: uni.code,
+      allowed_domain: uni.allowed_domain,
+      allow_personal_emails: uni.allow_personal_emails
+    })
+    setEditError('')
+  }
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    setEditLoading(true)
+    setEditError('')
+
+    try {
+      await api.put(`/admin/universities/${editingUniversity.id}`, editForm)
+      setEditingUniversity(null)
+      fetchData()
+    } catch (err) {
+      console.error('Error updating university', err)
+      setEditError(err.response?.data?.message || 'Failed to update university.')
+    } finally {
+      setEditLoading(false)
     }
   }
 
@@ -219,9 +258,14 @@ export default function AdminDashboard() {
                         <div className="text-sm font-medium text-secondary-900 truncate">{uni.name}</div>
                         <div className="text-xs text-secondary-500 truncate">Domain: {uni.allowed_domain}</div>
                       </div>
-                      <button onClick={() => handleDeleteUniversity(uni.id)} className="p-1.5 text-error opacity-0 group-hover:opacity-100 hover:bg-error/10 rounded-lg transition-all" title="Remove University">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => handleEditClick(uni)} className="p-1.5 text-secondary-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Edit University">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteUniversity(uni.id)} className="p-1.5 text-error hover:bg-error/10 rounded-lg transition-colors" title="Remove University">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -313,6 +357,90 @@ export default function AdminDashboard() {
                   <button type="button" onClick={() => setSelectedRequest(null)} className="btn-secondary flex-1">Cancel</button>
                   <button type="submit" disabled={modalLoading} className="btn-primary flex-1">
                     {modalLoading ? 'Creating...' : 'Confirm Acceptance'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Edit University Modal */}
+        {editingUniversity && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-secondary-100 flex items-center justify-between bg-secondary-50/50">
+                <h3 className="font-bold text-secondary-900">Edit University</h3>
+                <button onClick={() => setEditingUniversity(null)} className="p-1 hover:bg-secondary-200 rounded-lg transition-colors">
+                  <X className="w-5 h-5 text-secondary-500" />
+                </button>
+              </div>
+              <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                {editError && (
+                  <div className="p-3 bg-error/10 text-error text-sm rounded-xl border border-error/20">
+                    {editError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs font-semibold text-secondary-500 uppercase tracking-wider mb-1 block">University Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Parul University"
+                    className="input-field w-full"
+                    value={editForm.name}
+                    onChange={e => setEditForm({...editForm, name: e.target.value})}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-secondary-500 uppercase tracking-wider mb-1 block">University Code</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. PU"
+                    className="input-field w-full"
+                    value={editForm.code}
+                    onChange={e => setEditForm({...editForm, code: e.target.value.toUpperCase()})}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-secondary-500 uppercase tracking-wider mb-1 block">Allowed Domain</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. paruluniversity.ac.in"
+                    className="input-field w-full"
+                    value={editForm.allowed_domain}
+                    onChange={e => setEditForm({...editForm, allowed_domain: e.target.value})}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-secondary-50 rounded-xl border border-secondary-100 mt-2">
+                  <div>
+                    <div className="text-sm font-semibold text-secondary-900">Allow Personal Emails</div>
+                    <div className="text-xs text-secondary-500">Allow students to use gmail.com etc.</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={editForm.allow_personal_emails}
+                      onChange={e => setEditForm({...editForm, allow_personal_emails: e.target.checked})}
+                    />
+                    <div className="w-11 h-6 bg-secondary-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-secondary-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button type="button" onClick={() => setEditingUniversity(null)} className="btn-secondary flex-1">Cancel</button>
+                  <button type="submit" disabled={editLoading} className="btn-primary flex-1">
+                    {editLoading ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </form>

@@ -62,6 +62,27 @@ router.delete('/universities/:id', authenticate, authorize('super_admin'), async
   }
 });
 
+// Update a university
+router.put('/universities/:id', authenticate, authorize('super_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, code, allowed_domain, allow_personal_emails } = req.body;
+    
+    const { data: university, error } = await supabase
+      .from('universities')
+      .update({ name, code, allowed_domain, allow_personal_emails })
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    res.json({ message: 'University updated successfully', university });
+  } catch (error) {
+    console.error('Error updating university:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Create University Admin
 router.post('/university-admin', authenticate, authorize('super_admin'), async (req, res) => {
   try {

@@ -1,7 +1,14 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
-import { Shield, Check, X, Eye, AlertTriangle, Clock, Flag, ChevronRight, Search } from 'lucide-react'
+import { Shield, Check, X, Eye, AlertTriangle, Clock, Flag, ChevronRight, Search, Calendar } from 'lucide-react'
+
+// Helper to get past dates for dummy data
+const getPastDate = (daysAgo) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString();
+}
 
 const queue = [
   { id: 1, reporter: 'S2847', item: 'MacBook Pro 14"', claimant: 'S3021', time: '15m ago', status: 'Pending', risk: 'Low' },
@@ -10,19 +17,105 @@ const queue = [
   { id: 4, reporter: 'S5501', item: 'Gold Ring', claimant: 'S7790', time: '3h ago', status: 'Pending', risk: 'Medium' },
 ]
 
-const activityLog = [
-  { action: 'Approved claim', item: 'AirPods Pro', by: 'Mod Raj', time: '10m ago', type: 'approve' },
-  { action: 'Flagged suspicious claim', item: 'Laptop Bag', by: 'Mod Raj', time: '1h ago', type: 'flag' },
-  { action: 'Rejected fraudulent claim', item: 'iPhone 14', by: 'Mod Priya', time: '3h ago', type: 'reject' },
-  { action: 'Approved claim', item: 'Keys Bundle', by: 'Mod Raj', time: '5h ago', type: 'approve' },
+const initialLog = [
+  { id: 101, action: 'Approved claim', item: 'AirPods Pro', by: 'Mod Raj', time: getPastDate(0), type: 'approve' },
+  { id: 102, action: 'Flagged suspicious claim', item: 'Laptop Bag', by: 'Mod Raj', time: getPastDate(1), type: 'flag' },
+  { id: 103, action: 'Rejected fraudulent claim', item: 'iPhone 14', by: 'Mod Priya', time: getPastDate(3), type: 'reject' },
+  { id: 104, action: 'Approved claim', item: 'Keys Bundle', by: 'Mod Raj', time: getPastDate(10), type: 'approve' },
 ]
 
 export default function ModeratorDashboard() {
   const [items, setItems] = useState(queue)
+  const [log, setLog] = useState(initialLog)
+  const [filterType, setFilterType] = useState('today') // today, yesterday, week, month, specific, range
+  const [specificDate, setSpecificDate] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
-  const approve = (id) => setItems(prev => prev.filter(i => i.id !== id))
-  const reject = (id) => setItems(prev => prev.filter(i => i.id !== id))
-  const flag = (id) => setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'Flagged', risk: 'High' } : i))
+  const addToLog = (action, item, type) => {
+    const newEntry = {
+      id: Date.now() + Math.random(),
+      action: action,
+      item: item,
+      by: 'You',
+      time: new Date().toISOString(),
+      type: type
+    }
+    setLog(prev => [newEntry, ...prev])
+  }
+
+  const approve = (id) => {
+    const item = items.find(i => i.id === id)
+    if(item) {
+      setItems(prev => prev.filter(i => i.id !== id))
+      addToLog('Approved claim', item.item, 'approve')
+    }
+  }
+  
+  const reject = (id) => {
+    const item = items.find(i => i.id === id)
+    if(item) {
+      setItems(prev => prev.filter(i => i.id !== id))
+      addToLog('Rejected fraudulent claim', item.item, 'reject')
+    }
+  }
+  
+  const flag = (id) => {
+    const item = items.find(i => i.id === id)
+    if(item && item.status !== 'Flagged') {
+      setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'Flagged', risk: 'High' } : i))
+      addToLog('Flagged suspicious claim', item.item, 'flag')
+    }
+  }
+
+  // Filter logic
+  const filteredLog = log.filter(entry => {
+    const entryDate = new Date(entry.time);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    if (filterType === 'today') {
+      return entryDate >= today;
+    } else if (filterType === 'yesterday') {
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return entryDate >= yesterday && entryDate < today;
+    } else if (filterType === 'week') {
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return entryDate >= weekAgo;
+    } else if (filterType === 'month') {
+      const monthAgo = new Date(today);
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      return entryDate >= monthAgo;
+    } else if (filterType === 'specific') {
+      if (!specificDate) return true;
+      const spec = new Date(specificDate);
+      return entryDate.toDateString() === spec.toDateString();
+    } else if (filterType === 'range') {
+      if (!startDate && !endDate) return true;
+      const start = startDate ? new Date(startDate) : new Date('1970-01-01');
+      start.setHours(0,0,0,0);
+      const end = endDate ? new Date(endDate) : new Date();
+      end.setHours(23,59,59,999);
+      return entryDate >= start && entryDate <= end;
+    }
+    return true;
+  });
+
+  // format time helper
+  const formatTime = (isoString) => {
+    const d = new Date(isoString);
+    const now = new Date();
+    const diffMins = Math.floor((now - d) / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'Yesterday';
+    return d.toLocaleDateString();
+  }
 
   return (
     <AppLayout title="Moderator Dashboard">
@@ -33,7 +126,7 @@ export default function ModeratorDashboard() {
           {[
             { icon: Clock, label: 'Pending Review', value: items.filter(i => i.status === 'Pending').length, color: 'text-warning', bg: 'bg-warning/10' },
             { icon: Flag, label: 'Flagged Cases', value: items.filter(i => i.status === 'Flagged').length, color: 'text-error', bg: 'bg-error/10' },
-            { icon: Check, label: 'Approved Today', value: '14', color: 'text-accent', bg: 'bg-accent/10' },
+            { icon: Check, label: 'Approved Today', value: log.filter(l => l.type === 'approve' && new Date(l.time) >= new Date().setHours(0,0,0,0)).length, color: 'text-accent', bg: 'bg-accent/10' },
           ].map((stat, i) => (
             <motion.div
               key={i}
@@ -84,48 +177,51 @@ export default function ModeratorDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map(item => (
-                    <motion.tr
-                      key={item.id}
-                      layout
-                      exit={{ opacity: 0, x: -20 }}
-                      className="hover:bg-secondary-50 transition-colors"
-                    >
-                      <td className="table-cell font-medium text-secondary-900">#{item.reporter}</td>
-                      <td className="table-cell">{item.item}</td>
-                      <td className="table-cell">#{item.claimant}</td>
-                      <td className="table-cell text-secondary-400 text-xs">{item.time}</td>
-                      <td className="table-cell">
-                        <span className={`badge text-xs ${
-                          item.risk === 'High' ? 'badge-error' :
-                          item.risk === 'Medium' ? 'badge-warning' : 'badge-success'
-                        }`}>
-                          {item.risk}
-                        </span>
-                      </td>
-                      <td className="table-cell">
-                        <span className={`badge text-xs ${item.status === 'Flagged' ? 'badge-error' : 'badge-primary'}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="table-cell">
-                        <div className="flex items-center gap-1.5">
-                          <button className="p-1.5 rounded-lg hover:bg-primary/10 text-secondary-400 hover:text-primary transition-colors" title="View">
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => approve(item.id)} className="p-1.5 rounded-lg hover:bg-accent/10 text-secondary-400 hover:text-accent transition-colors" title="Approve">
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => reject(item.id)} className="p-1.5 rounded-lg hover:bg-error/10 text-secondary-400 hover:text-error transition-colors" title="Reject">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => flag(item.id)} className="p-1.5 rounded-lg hover:bg-warning/10 text-secondary-400 hover:text-warning transition-colors" title="Flag">
-                            <Flag className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
+                  <AnimatePresence>
+                    {items.map(item => (
+                      <motion.tr
+                        key={item.id}
+                        layout
+                        initial={{ opacity: 1 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="hover:bg-secondary-50 transition-colors"
+                      >
+                        <td className="table-cell font-medium text-secondary-900">#{item.reporter}</td>
+                        <td className="table-cell">{item.item}</td>
+                        <td className="table-cell">#{item.claimant}</td>
+                        <td className="table-cell text-secondary-400 text-xs">{item.time}</td>
+                        <td className="table-cell">
+                          <span className={`badge text-xs ${
+                            item.risk === 'High' ? 'badge-error' :
+                            item.risk === 'Medium' ? 'badge-warning' : 'badge-success'
+                          }`}>
+                            {item.risk}
+                          </span>
+                        </td>
+                        <td className="table-cell">
+                          <span className={`badge text-xs ${item.status === 'Flagged' ? 'badge-error' : 'badge-primary'}`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex items-center gap-1.5">
+                            <button className="p-1.5 rounded-lg hover:bg-primary/10 text-secondary-400 hover:text-primary transition-colors" title="View">
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => approve(item.id)} className="p-1.5 rounded-lg hover:bg-accent/10 text-secondary-400 hover:text-accent transition-colors" title="Approve">
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => reject(item.id)} className="p-1.5 rounded-lg hover:bg-error/10 text-secondary-400 hover:text-error transition-colors" title="Reject">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => flag(item.id)} className="p-1.5 rounded-lg hover:bg-warning/10 text-secondary-400 hover:text-warning transition-colors" title="Flag">
+                              <Flag className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
                 </tbody>
               </table>
             </div>
@@ -134,27 +230,91 @@ export default function ModeratorDashboard() {
 
         {/* Activity Log */}
         <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-6">
-          <h3 className="font-semibold text-secondary-900 mb-4">Today's Activity Log</h3>
-          <div className="space-y-3">
-            {activityLog.map((log, i) => (
-              <div key={i} className="flex items-center gap-4 py-2.5 border-b border-secondary-100 last:border-0">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  log.type === 'approve' ? 'bg-accent/10 text-accent' :
-                  log.type === 'reject' ? 'bg-error/10 text-error' :
-                  'bg-warning/10 text-warning'
-                }`}>
-                  {log.type === 'approve' ? <Check className="w-4 h-4" /> :
-                   log.type === 'reject' ? <X className="w-4 h-4" /> :
-                   <Flag className="w-4 h-4" />}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+            <h3 className="font-semibold text-secondary-900 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              Activity Log
+            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <select 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value)}
+                className="input-field py-1.5 px-3 text-sm border border-secondary-200 rounded-lg outline-none"
+              >
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="specific">Specific Date</option>
+                <option value="range">Date Range</option>
+              </select>
+              
+              {filterType === 'specific' && (
+                <input 
+                  type="date" 
+                  value={specificDate}
+                  onChange={(e) => setSpecificDate(e.target.value)}
+                  className="input-field py-1.5 px-3 text-sm border border-secondary-200 rounded-lg outline-none"
+                />
+              )}
+              
+              {filterType === 'range' && (
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="date" 
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="input-field py-1.5 px-3 text-sm border border-secondary-200 rounded-lg outline-none"
+                  />
+                  <span className="text-secondary-400 text-sm">to</span>
+                  <input 
+                    type="date" 
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="input-field py-1.5 px-3 text-sm border border-secondary-200 rounded-lg outline-none"
+                  />
                 </div>
-                <div className="flex-1 text-sm">
-                  <span className="font-medium text-secondary-900">{log.action}</span>
-                  <span className="text-secondary-400"> · {log.item}</span>
-                </div>
-                <div className="text-xs text-secondary-400">{log.by}</div>
-                <div className="text-xs text-secondary-400">{log.time}</div>
-              </div>
-            ))}
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <AnimatePresence>
+              {filteredLog.map((entry) => (
+                <motion.div 
+                  key={entry.id} 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-center gap-4 py-2.5 border-b border-secondary-100 last:border-0"
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    entry.type === 'approve' ? 'bg-accent/10 text-accent' :
+                    entry.type === 'reject' ? 'bg-error/10 text-error' :
+                    'bg-warning/10 text-warning'
+                  }`}>
+                    {entry.type === 'approve' ? <Check className="w-4 h-4" /> :
+                     entry.type === 'reject' ? <X className="w-4 h-4" /> :
+                     <Flag className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 text-sm">
+                    <span className="font-medium text-secondary-900">{entry.action}</span>
+                    <span className="text-secondary-400"> · {entry.item}</span>
+                  </div>
+                  <div className="text-xs text-secondary-400 w-20 truncate">{entry.by}</div>
+                  <div className="text-xs text-secondary-400 w-24 text-right">{formatTime(entry.time)}</div>
+                </motion.div>
+              ))}
+              {filteredLog.length === 0 && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center text-secondary-400 py-8 text-sm"
+                >
+                  No activity found for this period.
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
