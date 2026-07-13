@@ -137,6 +137,26 @@ router.post("/university-request", async (req, res) => {
       console.error("Supabase insert error:", error);
       return res.status(400).json({ message: "Failed to submit request" });
     }
+
+    // Find super_admin
+    const { data: admin } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('role', 'super_admin')
+      .limit(1)
+      .single();
+
+    if (admin) {
+      // Create notification
+      await supabase.from('notifications').insert([{
+        user_id: admin.id,
+        title: 'New Partnership Request',
+        message: `University request from ${req.body.university_name}`,
+        type: 'system',
+        is_read: false
+      }]);
+    }
+
     res.json({ message: "Request submitted successfully", data });
   } catch (error) {
     console.error("Request error:", error);

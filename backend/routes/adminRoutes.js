@@ -130,6 +130,81 @@ router.put('/requests/:id', authenticate, authorize('super_admin'), async (req, 
   }
 });
 
+// Advanced Accept Request Workflow
+router.post('/accept-request/:id', authenticate, authorize('super_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, allowed_domain, allow_personal_emails, admin_password } = req.body;
+
+    // 1. Fetch the request
+    const { data: request, error: reqError } = await supabase
+      .from('university_requests')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (reqError || !request) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    // 2. Create the university
+    const { data: university, error: uniError } = await supabase
+      .from('universities')
+      .insert([{
+        name: request.university_name,
+        code,
+        allowed_domain,
+        allow_personal_emails
+      }])
+      .select()
+      .single();
+
+    if (uniError) {
+      return res.status(400).json({ message: 'Failed to create university: ' + uniError.message });
+    }
+
+    // 3. Create university_admin in Auth
+    const email = request.official_email;
+    const name = request.contact_person;
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: email,
+      password: admin_password,
+      email_confirm: true,
+      user_metadata: { name, role: 'university_admin', university_id: university.id }
+    });
+
+    if (authError) {
+      return res.status(400).json({ message: 'Failed to create admin user: ' + authError.message });
+    }
+
+    // 4. Create profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert([{
+        id: authData.user.id,
+        name,
+        email,
+        role: 'university_admin',
+        university_id: university.id
+      }]);
+
+    if (profileError) {
+      return res.status(400).json({ message: 'Failed to create admin profile: ' + profileError.message });
+    }
+
+    // 5. Update request status to approved
+    await supabase
+      .from('university_requests')
+      .update({ status: 'approved' })
+      .eq('id', id);
+
+    res.json({ message: 'University and admin created successfully', university });
+  } catch (error) {
+    console.error('Error accepting request:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // ==========================================
 // UNIVERSITY ADMIN ROUTES
 // ==========================================

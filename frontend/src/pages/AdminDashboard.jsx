@@ -5,7 +5,7 @@ import AppLayout from '../components/AppLayout'
 import api from '../api'
 import {
   Building2, Users, FileText, CheckCircle2,
-  MapPin, ChevronRight, Eye, Trash2, Mail, Phone, Shield
+  MapPin, ChevronRight, Eye, Trash2, Mail, Phone, Shield, X
 } from 'lucide-react'
 
 const kpisTemplate = [
@@ -21,29 +21,41 @@ export default function AdminDashboard() {
   const [kpis, setKpis] = useState(kpisTemplate)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [uniRes, reqRes] = await Promise.all([
-          api.get('/admin/universities'),
-          api.get('/admin/requests')
-        ]);
-        
-        setUniversities(uniRes.data || []);
-        setRequests(reqRes.data || []);
+  // Modal State
+  const [selectedRequest, setSelectedRequest] = useState(null)
+  const [modalForm, setModalForm] = useState({
+    code: '',
+    allowed_domain: '',
+    allow_personal_emails: false,
+    admin_password: ''
+  })
+  const [modalLoading, setModalLoading] = useState(false)
+  const [modalError, setModalError] = useState('')
 
-        setKpis(prev => [
-          { ...prev[0], value: uniRes.data.length.toString() },
-          prev[1], // Ideally we'd fetch total users across all unis
-          { ...prev[2], value: reqRes.data.filter(r => r.status === 'Pending').length.toString() },
-          prev[3]  // Ideally we'd fetch total items across all unis
-        ]);
-      } catch (err) {
-        console.error('Error fetching admin data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    try {
+      const [uniRes, reqRes] = await Promise.all([
+        api.get('/admin/universities'),
+        api.get('/admin/requests')
+      ]);
+      
+      setUniversities(uniRes.data || []);
+      setRequests(reqRes.data || []);
+
+      setKpis(prev => [
+        { ...prev[0], value: uniRes.data.length.toString() },
+        prev[1], 
+        { ...prev[2], value: reqRes.data.filter(r => r.status === 'Pending').length.toString() },
+        prev[3]  
+      ]);
+    } catch (err) {
+      console.error('Error fetching admin data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [])
 
@@ -51,15 +63,46 @@ export default function AdminDashboard() {
     try {
       await api.put(`/admin/requests/${id}`, { status: newStatus });
       setRequests(requests.map(r => r.id === id ? { ...r, status: newStatus } : r));
+      // Refresh KPIs
+      fetchData();
     } catch (err) {
       console.error('Error updating request status', err);
       alert('Failed to update status');
     }
   }
 
+  const handleAcceptClick = (request) => {
+    setSelectedRequest(request)
+    setModalForm({
+      code: '',
+      allowed_domain: request.official_email ? request.official_email.split('@')[1] : '',
+      allow_personal_emails: false,
+      admin_password: ''
+    })
+    setModalError('')
+  }
+
+  const handleModalSubmit = async (e) => {
+    e.preventDefault()
+    setModalLoading(true)
+    setModalError('')
+
+    try {
+      await api.post(`/admin/accept-request/${selectedRequest.id}`, modalForm)
+      // Close modal and refresh data
+      setSelectedRequest(null)
+      fetchData()
+    } catch (err) {
+      console.error('Error accepting request', err)
+      setModalError(err.response?.data?.message || 'Failed to accept request and create university.')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
   return (
     <AppLayout title="Super Admin Dashboard">
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6 relative">
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -116,15 +159,15 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="table-cell">
-                          <span className={`badge text-xs ${r.status === 'Pending' ? 'badge-warning' : r.status === 'Accept' ? 'badge-success' : 'badge-secondary'}`}>
+                          <span className={`badge text-xs ${r.status === 'Pending' ? 'badge-warning' : r.status === 'approved' ? 'badge-success' : 'badge-secondary'}`}>
                             {r.status}
                           </span>
                         </td>
                         <td className="table-cell">
                           {r.status === 'Pending' && (
                             <div className="flex items-center gap-2">
-                              <button onClick={() => handleUpdateStatus(r.id, 'Accept')} className="text-xs px-2 py-1 bg-success/10 text-success rounded-lg hover:bg-success/20">Accept</button>
-                              <button onClick={() => handleUpdateStatus(r.id, 'Reject')} className="text-xs px-2 py-1 bg-error/10 text-error rounded-lg hover:bg-error/20">Reject</button>
+                              <button onClick={() => handleAcceptClick(r)} className="text-xs px-2 py-1 bg-success/10 text-success rounded-lg hover:bg-success/20">Accept</button>
+                              <button onClick={() => handleUpdateStatus(r.id, 'rejected')} className="text-xs px-2 py-1 bg-error/10 text-error rounded-lg hover:bg-error/20">Reject</button>
                             </div>
                           )}
                           {r.status !== 'Pending' && (
@@ -174,6 +217,95 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Acceptance Modal */}
+        {selectedRequest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-secondary-100 flex items-center justify-between bg-secondary-50/50">
+                <h3 className="font-bold text-secondary-900">Accept University</h3>
+                <button onClick={() => setSelectedRequest(null)} className="p-1 hover:bg-secondary-200 rounded-lg transition-colors">
+                  <X className="w-5 h-5 text-secondary-500" />
+                </button>
+              </div>
+              <form onSubmit={handleModalSubmit} className="p-6 space-y-4">
+                {modalError && (
+                  <div className="p-3 bg-error/10 text-error text-sm rounded-xl border border-error/20">
+                    {modalError}
+                  </div>
+                )}
+                <div className="text-sm text-secondary-600 mb-4">
+                  Configuring <span className="font-semibold text-secondary-900">{selectedRequest.university_name}</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-secondary-500 uppercase tracking-wider mb-1 block">University Code</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. PU"
+                    className="input-field w-full"
+                    value={modalForm.code}
+                    onChange={e => setModalForm({...modalForm, code: e.target.value.toUpperCase()})}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-secondary-500 uppercase tracking-wider mb-1 block">Allowed Domain</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. paruluniversity.ac.in"
+                    className="input-field w-full"
+                    value={modalForm.allowed_domain}
+                    onChange={e => setModalForm({...modalForm, allowed_domain: e.target.value})}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-secondary-500 uppercase tracking-wider mb-1 block">Initial Admin Password</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Set temporary password"
+                    className="input-field w-full"
+                    value={modalForm.admin_password}
+                    onChange={e => setModalForm({...modalForm, admin_password: e.target.value})}
+                  />
+                  <p className="text-xs text-secondary-400 mt-1">This password will be used by {selectedRequest.contact_person} to log in.</p>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-secondary-50 rounded-xl border border-secondary-100 mt-2">
+                  <div>
+                    <div className="text-sm font-semibold text-secondary-900">Allow Personal Emails</div>
+                    <div className="text-xs text-secondary-500">Allow students to use gmail.com etc.</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={modalForm.allow_personal_emails}
+                      onChange={e => setModalForm({...modalForm, allow_personal_emails: e.target.checked})}
+                    />
+                    <div className="w-11 h-6 bg-secondary-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-secondary-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button type="button" onClick={() => setSelectedRequest(null)} className="btn-secondary flex-1">Cancel</button>
+                  <button type="submit" disabled={modalLoading} className="btn-primary flex-1">
+                    {modalLoading ? 'Creating...' : 'Confirm Acceptance'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
       </div>
     </AppLayout>
   )

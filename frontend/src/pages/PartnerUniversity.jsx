@@ -29,9 +29,11 @@ export default function PartnerUniversity() {
     setErrorMsg('')
 
     try {
-      // Create request to backend (Note: You'll need to create this route in backend/routes/adminRoutes.js or a public route)
-      // Actually, we can submit directly to Supabase since we have the URL and Key in frontend or we can use backend API.
-      const response = await api.post('/auth/university-request', form);
+      const payload = {
+        ...form,
+        number_of_students: form.number_of_students ? parseInt(form.number_of_students, 10) : null
+      }
+      const response = await api.post('/auth/university-request', payload);
       setSubmitted(true)
     } catch (err) {
       console.error(err)

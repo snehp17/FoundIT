@@ -1,11 +1,44 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import { Bell, Search, User } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import api from '../api'
 
 export default function AppLayout({ children, title }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [user, setUser] = useState(null)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      try {
+        setUser(JSON.parse(userStr))
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    // Optionally fetch unread notifications count
+    const fetchUnread = async () => {
+      try {
+        const res = await api.get('/notifications')
+        const unread = res.data.filter(n => !n.is_read).length
+        setUnreadCount(unread)
+      } catch (err) {
+        // ignore for now
+      }
+    }
+    if (user) {
+      fetchUnread()
+    }
+  }, [user])
+
+  const initial = user?.name ? user.name.substring(0, 2).toUpperCase() : 'U'
+  const isSuperAdmin = user?.role === 'super_admin'
 
   return (
     <div className="min-h-screen bg-secondary-50 flex">
@@ -36,13 +69,15 @@ export default function AppLayout({ children, title }) {
             {/* Notifications */}
             <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-secondary-100 transition-colors">
               <Bell className="w-5 h-5 text-secondary-600" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full" />
+              )}
             </Link>
 
             {/* Profile */}
             <Link to="/profile" className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-secondary-100 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-sm font-bold">
-                S
+              <div className={`w-8 h-8 rounded-full ${isSuperAdmin ? 'bg-gradient-to-br from-purple-600 to-purple-800' : 'bg-gradient-to-br from-blue-600 to-blue-800'} flex items-center justify-center text-white text-sm font-bold`}>
+                {initial}
               </div>
             </Link>
           </div>
