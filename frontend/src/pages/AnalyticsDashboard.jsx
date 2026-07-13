@@ -1,19 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
 import { BarChart2, TrendingUp, Download, Calendar, MapPin, Package, Users, CheckCircle2 } from 'lucide-react'
+import api from '../api'
 
 const periods = ['7 Days', '30 Days', '90 Days', '1 Year']
 
 const weeklyData = [45, 62, 58, 71, 80, 76, 89]
 const monthlyData = [38, 52, 61, 55, 70, 65, 72, 80, 76, 83, 78, 89]
 
-const categories = [
-  { label: 'Electronics', count: 128, pct: 37, color: 'bg-primary' },
-  { label: 'Documents', count: 89, pct: 26, color: 'bg-violet-500' },
-  { label: 'Accessories', count: 67, pct: 19, color: 'bg-accent' },
-  { label: 'Bags', count: 48, pct: 14, color: 'bg-warning' },
-  { label: 'Other', count: 15, pct: 4, color: 'bg-error' },
+const defaultCategories = [
+  { label: 'Electronics', count: 0, pct: 0, color: 'bg-primary' },
+  { label: 'Documents', count: 0, pct: 0, color: 'bg-violet-500' },
+  { label: 'Accessories', count: 0, pct: 0, color: 'bg-accent' },
+  { label: 'Bags', count: 0, pct: 0, color: 'bg-warning' },
+  { label: 'Other', count: 0, pct: 0, color: 'bg-error' },
 ]
 
 const topLocations = [
@@ -26,6 +27,26 @@ const topLocations = [
 
 export default function AnalyticsDashboard() {
   const [period, setPeriod] = useState('7 Days')
+  const [analytics, setAnalytics] = useState({
+    totalReports: 0,
+    recovered: 0,
+    recoveryRate: 0,
+    activeUsers: 0,
+    categories: defaultCategories
+  });
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const res = await api.get('/admin/analytics');
+        setAnalytics(res.data);
+      } catch (error) {
+        console.error("Failed to fetch analytics", error);
+      }
+    };
+    fetchAnalytics();
+  }, []);
+
   const data = period === '7 Days' ? weeklyData : monthlyData
   const labels = period === '7 Days'
     ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -53,7 +74,18 @@ export default function AnalyticsDashboard() {
                 </button>
               ))}
             </div>
-            <button className="btn-secondary btn-sm gap-2">
+            <button className="btn-secondary btn-sm gap-2" onClick={() => {
+              const csvContent = "data:text/csv;charset=utf-8," 
+                + "Category,Reports,Recovered,Rate\n"
+                + topLocations.map(e => `${e.location},${e.reports},${e.recovered},${e.rate}%`).join("\n");
+              const encodedUri = encodeURI(csvContent);
+              const link = document.createElement("a");
+              link.setAttribute("href", encodedUri);
+              link.setAttribute("download", "campus_analytics_report.csv");
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+            }}>
               <Download className="w-4 h-4" />
               Export Report
             </button>
@@ -63,10 +95,10 @@ export default function AnalyticsDashboard() {
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { icon: Package, label: 'Total Reports', value: '347', change: '↑ 12%', color: 'text-primary', bg: 'bg-primary/10' },
-            { icon: CheckCircle2, label: 'Recovered', value: '271', change: '↑ 8%', color: 'text-accent', bg: 'bg-accent/10' },
-            { icon: TrendingUp, label: 'Recovery Rate', value: '78%', change: '↑ 5%', color: 'text-violet-600', bg: 'bg-violet-100' },
-            { icon: Users, label: 'Active Users', value: '4,821', change: '↑ 18%', color: 'text-warning', bg: 'bg-warning/10' },
+            { icon: Package, label: 'Total Reports', value: analytics.totalReports.toString(), change: '↑ 12%', color: 'text-primary', bg: 'bg-primary/10' },
+            { icon: CheckCircle2, label: 'Recovered', value: analytics.recovered.toString(), change: '↑ 8%', color: 'text-accent', bg: 'bg-accent/10' },
+            { icon: TrendingUp, label: 'Recovery Rate', value: `${analytics.recoveryRate}%`, change: '↑ 5%', color: 'text-violet-600', bg: 'bg-violet-100' },
+            { icon: Users, label: 'Active Users', value: analytics.activeUsers.toString(), change: '↑ 18%', color: 'text-warning', bg: 'bg-warning/10' },
           ].map((kpi, i) => (
             <motion.div
               key={i}
@@ -130,7 +162,7 @@ export default function AnalyticsDashboard() {
                 {(() => {
                   let offset = 0
                   const colors = ['#2563EB', '#7C3AED', '#22C55E', '#F59E0B', '#EF4444']
-                  return categories.map((cat, i) => {
+                  return analytics.categories.map((cat, i) => {
                     const stroke = cat.pct
                     const el = (
                       <motion.circle
@@ -153,12 +185,12 @@ export default function AnalyticsDashboard() {
                 })()}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold text-secondary-900">347</span>
+                <span className="text-2xl font-bold text-secondary-900">{analytics.totalReports}</span>
                 <span className="text-xs text-secondary-400">Total</span>
               </div>
             </div>
             <div className="space-y-2">
-              {categories.map((cat, i) => (
+              {analytics.categories.map((cat, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <div className={`w-3 h-3 rounded-full ${cat.color} flex-shrink-0`} />
                   <span className="text-xs text-secondary-600 flex-1">{cat.label}</span>

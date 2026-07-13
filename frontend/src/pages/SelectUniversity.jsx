@@ -1,12 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Search, ChevronRight, Building2, Users, MapPin, ArrowRight, Compass } from 'lucide-react'
-
-const universities = [
-  { id: 1, name: 'Parul University', short: 'PU', location: 'Vadodara', students: '40,000+', campuses: 2, logo: 'PU' },
-  { id: 2, name: 'ITM SLS University', short: 'ITM', location: 'Vadodara', students: '10,000+', campuses: 1, logo: 'ITM' },
-]
+import { Search, ChevronRight, Building2, MapPin, ArrowRight } from 'lucide-react'
+import api from '../api'
 
 const colors = [
   'from-blue-500 to-indigo-600',
@@ -21,11 +17,26 @@ const colors = [
 
 export default function SelectUniversity() {
   const [query, setQuery] = useState('')
+  const [universities, setUniversities] = useState([])
+  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
+  useEffect(() => {
+    const fetchUniversities = async () => {
+      try {
+        const res = await api.get('/auth/universities')
+        setUniversities(res.data)
+      } catch (err) {
+        console.error('Failed to fetch universities', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchUniversities()
+  }, [])
+
   const filtered = universities.filter(u =>
-    u.name.toLowerCase().includes(query.toLowerCase()) ||
-    u.location.toLowerCase().includes(query.toLowerCase())
+    u.name.toLowerCase().includes(query.toLowerCase())
   )
 
   return (
@@ -74,7 +85,7 @@ export default function SelectUniversity() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by university name or city..."
+            placeholder="Search by university name..."
             className="input-field input-field-lg pl-14 w-full shadow-md text-base"
           />
           {query && (
@@ -87,58 +98,61 @@ export default function SelectUniversity() {
           )}
         </motion.div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+          </div>
+        )}
+
         {/* University Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
-          {filtered.map((uni, i) => (
-            <motion.div
-              key={uni.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.05 }}
-              whileHover={{ y: -4 }}
-              onClick={() => navigate('/login')}
-              className="glass-card p-6 cursor-pointer group hover:shadow-xl"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0`}>
-                  {uni.logo}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-secondary-900 text-sm leading-tight truncate group-hover:text-primary transition-colors">
-                    {uni.name}
-                  </h3>
-                  <div className="flex items-center gap-1 text-xs text-secondary-400 mt-0.5">
-                    <MapPin className="w-3 h-3" />
-                    {uni.location}
+        {!loading && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+            {filtered.map((uni, i) => (
+              <motion.div
+                key={uni.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.05 }}
+                whileHover={{ y: -4 }}
+                onClick={() => navigate('/login', { state: { university: uni } })}
+                className="glass-card p-6 cursor-pointer group hover:shadow-xl"
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${colors[i % colors.length]} flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0`}>
+                    {uni.code || uni.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-secondary-900 text-sm leading-tight truncate group-hover:text-primary transition-colors">
+                      {uni.name}
+                    </h3>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-secondary-50 rounded-xl p-2.5 text-center">
-                  <div className="text-sm font-bold text-secondary-900">{uni.students}</div>
-                  <div className="text-xs text-secondary-400">Students</div>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-secondary-50 rounded-xl p-2.5 text-center col-span-2">
+                    <div className="text-sm font-bold text-secondary-900 truncate">
+                      {uni.allowed_domain || 'Any domain'}
+                    </div>
+                    <div className="text-xs text-secondary-400">Allowed Domain</div>
+                  </div>
                 </div>
-                <div className="bg-secondary-50 rounded-xl p-2.5 text-center">
-                  <div className="text-sm font-bold text-secondary-900">{uni.campuses}</div>
-                  <div className="text-xs text-secondary-400">{uni.campuses === 1 ? 'Campus' : 'Campuses'}</div>
+
+                <div className="flex items-center justify-between">
+                  <span className="badge-success text-xs">Active on FoundIT</span>
+                  <ChevronRight className="w-4 h-4 text-secondary-400 group-hover:text-primary transition-colors" />
                 </div>
-              </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
-              <div className="flex items-center justify-between">
-                <span className="badge-success text-xs">Active on FoundIT</span>
-                <ChevronRight className="w-4 h-4 text-secondary-400 group-hover:text-primary transition-colors" />
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="text-center py-20">
             <Building2 className="w-16 h-16 text-secondary-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-secondary-900 mb-2">No universities found</h3>
             <p className="text-secondary-500 mb-6">Can't find your university? Suggest it for the next expansion.</p>
-            <button className="btn-primary">Request My University</button>
+            <button onClick={() => navigate('/partner')} className="btn-primary">Request My University</button>
           </div>
         )}
 
@@ -147,6 +161,7 @@ export default function SelectUniversity() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
+          onClick={() => navigate('/partner')}
           className="border-2 border-dashed border-secondary-200 rounded-3xl p-8 text-center hover:border-primary hover:bg-primary-50/50 transition-all duration-300 cursor-pointer group"
         >
           <Building2 className="w-10 h-10 text-secondary-300 mx-auto mb-3 group-hover:text-primary transition-colors" />

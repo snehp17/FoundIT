@@ -31,6 +31,7 @@ export default function ModeratorDashboard() {
   const [specificDate, setSpecificDate] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [selectedItem, setSelectedItem] = useState(null)
 
   const addToLog = (action, item, type) => {
     const newEntry = {
@@ -205,7 +206,7 @@ export default function ModeratorDashboard() {
                         </td>
                         <td className="table-cell">
                           <div className="flex items-center gap-1.5">
-                            <button className="p-1.5 rounded-lg hover:bg-primary/10 text-secondary-400 hover:text-primary transition-colors" title="View">
+                            <button onClick={() => setSelectedItem(item)} className="p-1.5 rounded-lg hover:bg-primary/10 text-secondary-400 hover:text-primary transition-colors" title="View">
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => approve(item.id)} className="p-1.5 rounded-lg hover:bg-accent/10 text-secondary-400 hover:text-accent transition-colors" title="Approve">
@@ -318,6 +319,67 @@ export default function ModeratorDashboard() {
           </div>
         </div>
       </div>
+      
+      {/* View Item Modal */}
+      <AnimatePresence>
+        {selectedItem && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-secondary-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setSelectedItem(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-surface rounded-3xl w-full max-w-md shadow-xl border border-secondary-100 overflow-hidden"
+            >
+              <div className="p-5 border-b border-secondary-100 flex items-center justify-between">
+                <h3 className="font-semibold text-secondary-900">Verification Details</h3>
+                <button onClick={() => setSelectedItem(null)} className="p-1.5 hover:bg-secondary-100 rounded-lg text-secondary-400 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <div className="text-xs text-secondary-400 mb-1">Item Details</div>
+                  <div className="font-medium text-secondary-900">{selectedItem.item}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs text-secondary-400 mb-1">Reported By</div>
+                    <div className="font-medium text-secondary-900">#{selectedItem.reporter}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-secondary-400 mb-1">Claimed By</div>
+                    <div className="font-medium text-secondary-900">#{selectedItem.claimant}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-secondary-400 mb-1">Time Elapsed</div>
+                    <div className="text-sm text-secondary-600">{selectedItem.time}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-secondary-400 mb-1">Risk Level</div>
+                    <span className={`badge text-xs ${
+                      selectedItem.risk === 'High' ? 'badge-error' :
+                      selectedItem.risk === 'Medium' ? 'badge-warning' : 'badge-success'
+                    }`}>
+                      {selectedItem.risk}
+                    </span>
+                  </div>
+                </div>
+                <div className="pt-4 flex gap-2 border-t border-secondary-100">
+                  <button onClick={() => { approve(selectedItem.id); setSelectedItem(null); }} className="btn-primary flex-1">Approve</button>
+                  <button onClick={() => { reject(selectedItem.id); setSelectedItem(null); }} className="btn-secondary flex-1 text-error hover:bg-error/10 hover:border-error/20">Reject</button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppLayout>
   )
 }
