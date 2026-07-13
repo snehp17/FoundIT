@@ -67,7 +67,7 @@ export default function ReportLost() {
     try {
       const formData = new FormData();
       Object.keys(form).forEach(key => formData.append(key, form[key]));
-      formData.append('type', 'lost');
+      formData.append('type', 'LOST');
       
       files.forEach((file) => {
         formData.append('images', file);

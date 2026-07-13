@@ -12,6 +12,7 @@ import ClaimVerification from './pages/ClaimVerification'
 import SecureChat from './pages/SecureChat'
 import RecoveryTracking from './pages/RecoveryTracking'
 import Notifications from './pages/Notifications'
+import MyReports from './pages/MyReports'
 import UserProfile from './pages/UserProfile'
 import AdminDashboard from './pages/AdminDashboard'
 import ModeratorDashboard from './pages/ModeratorDashboard'
@@ -41,6 +42,7 @@ function App() {
         <Route path="/chat" element={<ProtectedRoute allowedRoles={['student']}><SecureChat /></ProtectedRoute>} />
         <Route path="/tracking/:id" element={<ProtectedRoute allowedRoles={['student']}><RecoveryTracking /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute allowedRoles={['student', 'university_admin', 'super_admin']}><Notifications /></ProtectedRoute>} />
+        <Route path="/my-reports" element={<ProtectedRoute allowedRoles={['student']}><MyReports /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute allowedRoles={['student', 'university_admin', 'super_admin']}><UserProfile /></ProtectedRoute>} />
 
         {/* Protected Routes - Super Admin */}

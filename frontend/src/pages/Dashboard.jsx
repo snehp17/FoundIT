@@ -47,10 +47,10 @@ export default function Dashboard() {
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-display font-bold text-white mb-1">
-                Good morning, Student! 👋
+                Good morning, {JSON.parse(localStorage.getItem('user'))?.name?.split(' ')[0] || 'Student'}! 👋
               </h2>
               <p className="text-secondary-400">
-                IIT Delhi Campus · 2 items awaiting your action
+                {JSON.parse(localStorage.getItem('user'))?.university || 'Campus'} · 2 items awaiting your action
               </p>
             </div>
             <div className="flex gap-3">

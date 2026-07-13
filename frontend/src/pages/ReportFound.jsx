@@ -67,7 +67,7 @@ export default function Reportfound() {
     try {
       const formData = new FormData();
       Object.keys(form).forEach(key => formData.append(key, form[key]));
-      formData.append('type', 'found');
+      formData.append('type', 'FOUND');
       
       files.forEach((file) => {
         formData.append('images', file);

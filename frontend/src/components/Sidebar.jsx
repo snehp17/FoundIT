@@ -10,6 +10,7 @@ import {
 const studentItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: Search, label: 'Browse Items', path: '/items' },
+  { icon: MessageSquare, label: 'My Reports', path: '/my-reports' },
   { icon: PlusCircle, label: 'Report Lost', path: '/report-lost' },
   { icon: PackageSearch, label: 'Report Found', path: '/report-found' },
   { icon: TrendingUp, label: 'Smart Matches', path: '/matches' },
