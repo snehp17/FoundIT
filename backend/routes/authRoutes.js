@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { User, WhitelistedEmail, University } = require("../models");
-const { Op } = require("sequelize");
+const { supabase } = require("../config/db");
 
 // USER REGISTRATION
 router.post("/register", async (req, res) => {
@@ -13,24 +12,49 @@ router.post("/register", async (req, res) => {
     }
 
     // Check if university exists
-    const university = await University.findByPk(universityId);
-    if (!university) {
+    const { data: university, error: uniError } = await supabase
+      .from('universities')
+      .select('*')
+      .eq('id', universityId)
+      .maybeSingle();
+      
+    if (uniError || !university) {
       return res.status(404).json({ message: "University not found" });
     }
 
     // Check if email is whitelisted for this university
-    const isWhitelisted = await WhitelistedEmail.findOne({ where: { email, universityId } });
-    if (!isWhitelisted) {
+    const { data: isWhitelisted, error: whiteError } = await supabase
+      .from('whitelisted_emails')
+      .select('*')
+      .eq('email', email)
+      .eq('universityId', universityId)
+      .maybeSingle();
+      
+    if (whiteError || !isWhitelisted) {
       return res.status(403).json({ message: "This email is not authorized for this university. Please use your official university email or contact your university admin." });
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const { data: existingUser, error: existError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+      
     if (existingUser) {
       return res.status(400).json({ message: "User already exists with that email" });
     }
 
-    const user = await User.create({ name, email, password, role: 'student', universityId });
+    const { data: user, error: insertError } = await supabase
+      .from('users')
+      .insert([{ name, email, password, role: 'student', universityId }])
+      .select()
+      .single();
+
+    if (insertError) {
+      throw insertError;
+    }
+
     res.json({ message: "User registered successfully", user: { id: user.id, name: user.name, role: user.role } });
   } catch (error) {
     console.error("Registration error:", error);
@@ -53,14 +77,13 @@ router.post("/login", async (req, res) => {
     }
 
     // 2. Check for Normal User/University Admin Login
-    let user = await User.findOne({
-      where: {
-        [Op.or]: [{ email: usernameOrEmail }, { name: usernameOrEmail }],
-      },
-      include: [{ model: University }]
-    });
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*, universities(name)')
+      .or(`email.eq.${usernameOrEmail},name.eq.${usernameOrEmail}`)
+      .maybeSingle();
 
-    if (!user) {
+    if (userError || !user) {
       return res.status(401).json({ message: "Invalid credentials. User not found." });
     }
 
@@ -74,7 +97,8 @@ router.post("/login", async (req, res) => {
       role: user.role,
       name: user.name,
       universityId: user.universityId,
-      university: user.University ? user.University.name : null
+      // Handle array or object based on foreign key relationship
+      university: user.universities ? (Array.isArray(user.universities) ? user.universities[0]?.name : user.universities.name) : null
     });
   } catch (error) {
     console.error("Login error:", error);

@@ -1,25 +1,15 @@
-﻿const { Sequelize } = require('sequelize');
+const { createClient } = require('@supabase/supabase-js');
 
-const sequelize = new Sequelize(
-  process.env.PG_DB,
-  process.env.PG_USER,
-  process.env.PG_PASSWORD,
-  {
-    host: process.env.PG_HOST || 'localhost',
-    port: process.env.PG_PORT || 5432,
-    dialect: 'postgres',
-    logging: false,
-  }
-);
+const supabaseUrl = process.env.SUPABASE_URL || 'https://fnspjghibqohshfulnah.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY || 'sb_publishable_nFgYIjMr4IZIhtUODt8vVw_Lwtx1yoj';
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const connectDB = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('PostgreSQL Connected Successfully.');
-  } catch (error) {
-    console.error('Unable to connect to PostgreSQL:', error);
-    process.exit(1);
-  }
+  // Supabase uses a REST API under the hood, so there isn't a persistent 
+  // connection to "authenticate" in the same way Sequelize does.
+  // We can just log that it's initialized.
+  console.log('Supabase Client Initialized.');
 };
 
-module.exports = { sequelize, connectDB };
+module.exports = { supabase, connectDB };

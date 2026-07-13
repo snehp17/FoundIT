@@ -2,7 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { connectDB, sequelize } = require('./config/db');
+const { connectDB } = require('./config/db');
 
 const app = express();
 
@@ -28,13 +28,10 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Connect to PostgreSQL, sync tables, then start server
+// Connect to DB, then start server
 const startServer = async () => {
   await connectDB();
-  require('./models'); // Load models and associations
-  // sync: creates tables if they don't exist (safe - does not drop existing data)
-  await sequelize.sync({ alter: true }); // Using alter: true to update schema for existing tables
-  console.log('All models synced with PostgreSQL.');
+  
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

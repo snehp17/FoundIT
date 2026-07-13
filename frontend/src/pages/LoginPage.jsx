@@ -2,16 +2,53 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Compass, ArrowRight, Eye, EyeOff, Mail, Lock, User, Phone, CheckCircle2, Zap } from 'lucide-react'
+import api from '../api'
 
 export default function LoginPage() {
   const [tab, setTab] = useState('login')
   const [showPass, setShowPass] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', universityId: '1' })
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    navigate('/select-university')
+    setErrorMsg('')
+    setLoading(true)
+
+    try {
+      if (tab === 'login') {
+        const response = await api.post('/auth/login', {
+          usernameOrEmail: form.email,
+          password: form.password
+        });
+        localStorage.setItem('user', JSON.stringify(response.data));
+        
+        if (response.data.role === 'super_admin' || response.data.role === 'university_admin') {
+          navigate('/admin-dashboard')
+        } else {
+          navigate('/dashboard')
+        }
+      } else {
+        // Register
+        const response = await api.post('/auth/register', {
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          universityId: parseInt(form.universityId, 10)
+        });
+        
+        // Auto-login or redirect
+        alert("Registration successful! Please login.");
+        setTab('login');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.response?.data?.message || 'Something went wrong');
+    } finally {
+      setLoading(false)
+    }
   }
 
   const passwordStrength = (pwd) => {
@@ -124,6 +161,12 @@ export default function LoginPage() {
             ))}
           </div>
 
+          {errorMsg && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+              {errorMsg}
+            </div>
+          )}
+
           {/* Google Button */}
           <button className="w-full flex items-center justify-center gap-3 py-3 border border-secondary-200 rounded-2xl hover:bg-secondary-50 transition-all duration-200 mb-6 font-medium text-secondary-700">
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -181,13 +224,15 @@ export default function LoginPage() {
               {tab === 'register' && (
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" />
-                  <input
-                    type="tel"
-                    placeholder="Phone number"
-                    className="input-field pl-11"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  />
+                  <select
+                    className="input-field pl-11 appearance-none"
+                    value={form.universityId}
+                    onChange={(e) => setForm({ ...form, universityId: e.target.value })}
+                    required
+                  >
+                    <option value="1">Parul University (PU)</option>
+                    <option value="2">ITM SLS University (ITM)</option>
+                  </select>
                 </div>
               )}
 
@@ -245,9 +290,9 @@ export default function LoginPage() {
                 </label>
               )}
 
-              <button type="submit" className="btn-primary w-full justify-center py-3.5 text-base">
-                {tab === 'login' ? 'Sign In' : 'Create Account'}
-                <ArrowRight className="w-5 h-5" />
+              <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3.5 text-base">
+                {loading ? 'Processing...' : (tab === 'login' ? 'Sign In' : 'Create Account')}
+                {!loading && <ArrowRight className="w-5 h-5" />}
               </button>
             </motion.form>
           </AnimatePresence>

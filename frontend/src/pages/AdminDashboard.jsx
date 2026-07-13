@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import AppLayout from '../components/AppLayout'
+import api from '../api'
 import {
   Package, Users, CheckCircle2, TrendingUp, AlertTriangle,
   BarChart2, MapPin, Clock, ChevronRight, Shield, Eye, Trash2
@@ -30,6 +32,38 @@ const hotspots = [
 ]
 
 export default function AdminDashboard() {
+  const [reports, setReports] = useState(recentReports)
+  const [usersCount, setUsersCount] = useState('4,821')
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const [studentsRes, itemsRes] = await Promise.all([
+          api.get(`/admin/students?universityId=${user?.universityId || 1}`),
+          api.get('/items')
+        ]);
+        
+        setUsersCount(studentsRes.data.registered.length.toString());
+        
+        const mappedItems = itemsRes.data.map(item => ({
+          id: item.id,
+          user: item.userId || 'Unknown',
+          item: item.title,
+          category: item.category,
+          location: item.location,
+          time: new Date(item.created_at).toLocaleDateString(),
+          status: item.status,
+          statusColor: item.status === 'Available' || item.status === 'Resolved' ? 'badge-success' : 'badge-warning'
+        }));
+        setReports(mappedItems.slice(0, 5));
+      } catch (err) {
+        console.error('Error fetching admin data', err);
+      }
+    };
+    fetchData();
+  }, [])
+
   return (
     <AppLayout title="Admin Dashboard">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -50,7 +84,9 @@ export default function AdminDashboard() {
                 </div>
                 <span className="text-xs text-accent font-medium">{kpi.change}</span>
               </div>
-              <div className={`text-3xl font-bold ${kpi.color} mb-1`}>{kpi.value}</div>
+              <div className={`text-3xl font-bold ${kpi.color} mb-1`}>
+                {kpi.label === 'Registered Users' ? usersCount : kpi.label === 'Active Reports' ? reports.length : kpi.value}
+              </div>
               <div className="text-sm text-secondary-500">{kpi.label}</div>
             </motion.div>
           ))}
@@ -76,7 +112,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentReports.map(r => (
+                  {reports.map(r => (
                     <tr key={r.id} className="hover:bg-secondary-50 transition-colors">
                       <td className="table-cell font-medium">#{r.user}</td>
                       <td className="table-cell">{r.item}</td>

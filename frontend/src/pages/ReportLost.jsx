@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
+import api from '../api'
 import {
   Upload, MapPin, Camera, CheckCircle2, ChevronRight, ChevronLeft,
   X, Plus, AlertCircle, Laptop, BookOpen, Watch, Key, CreditCard, Backpack, Headphones, ShoppingBag
@@ -29,7 +30,9 @@ const steps = ['Item Details', 'Location & Time', 'Upload Photos', 'Review & Sub
 export default function ReportLost() {
   const [step, setStep] = useState(0)
   const [photos, setPhotos] = useState([])
+  const [files, setFiles] = useState([])
   const [dragging, setDragging] = useState(false)
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const [form, setForm] = useState({
     title: '',
@@ -52,23 +55,56 @@ export default function ReportLost() {
     return true
   }
 
-  const handleSubmit = () => {
-    navigate('/dashboard')
+  const handleSubmit = async () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      alert("Please login first.");
+      navigate('/login');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      Object.keys(form).forEach(key => formData.append(key, form[key]));
+      formData.append('type', 'lost');
+      
+      files.forEach((file) => {
+        formData.append('images', file);
+      });
+      
+      await api.post('/items/report', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${user.token}`
+        }
+      });
+      
+      navigate('/dashboard');
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error reporting item');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const handleDrop = (e) => {
     e.preventDefault()
     setDragging(false)
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
-    const urls = files.map(f => URL.createObjectURL(f))
+    const newFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
+    const urls = newFiles.map(f => URL.createObjectURL(f))
     setPhotos(prev => [...prev, ...urls].slice(0, 5))
+    setFiles(prev => [...prev, ...newFiles].slice(0, 5))
   }
 
   const handleFileInput = (e) => {
-    const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'))
-    const urls = files.map(f => URL.createObjectURL(f))
+    const newFiles = Array.from(e.target.files).filter(f => f.type.startsWith('image/'))
+    const urls = newFiles.map(f => URL.createObjectURL(f))
     setPhotos(prev => [...prev, ...urls].slice(0, 5))
+    setFiles(prev => [...prev, ...newFiles].slice(0, 5))
   }
+
 
   return (
     <AppLayout title="Report Lost Item">
@@ -396,9 +432,9 @@ export default function ReportLost() {
                   <ChevronRight className="w-4 h-4" />
                 </button>
               ) : (
-                <button onClick={handleSubmit} className="btn-primary bg-error hover:bg-error-dark">
-                  Submit Report
-                  <AlertCircle className="w-4 h-4" />
+                <button onClick={handleSubmit} disabled={loading} className="btn-primary bg-error hover:bg-error-dark disabled:opacity-50">
+                  {loading ? 'Submitting...' : 'Submit Report'}
+                  {!loading && <AlertCircle className="w-4 h-4" />}
                 </button>
               )}
             </div>

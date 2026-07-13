@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import api from '../api'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
@@ -7,16 +8,7 @@ import {
   X, Grid, List, Brain, CheckCircle2, AlertCircle, Package
 } from 'lucide-react'
 
-const items = [
-  { id: 1, type: 'LOST', title: 'MacBook Pro 14" Silver', category: 'Electronics', location: 'Main Library', time: '2h ago', date: 'Today', status: 'AI Matching', match: '87%', img: null, desc: 'Space gray M3 MacBook Pro with blue sticker on lid' },
-  { id: 2, type: 'FOUND', title: 'Blue Hydroflask 32oz', category: 'Personal Items', location: 'Cafeteria', time: '4h ago', date: 'Today', status: 'Available', match: null, img: null, desc: 'Navy blue water bottle with BITS sticker' },
-  { id: 3, type: 'LOST', title: 'Student ID Card', category: 'Documents', location: 'Bus Stop', time: '1d ago', date: 'Yesterday', status: 'Match Found!', match: '94%', img: null, desc: 'University ID card for CSE department student' },
-  { id: 4, type: 'FOUND', title: 'AirPods Pro (Left earbud)', category: 'Electronics', location: 'Lecture Hall B', time: '6h ago', date: 'Today', status: 'Claimed', match: null, img: null, desc: 'Single AirPod Pro left earbud in white case' },
-  { id: 5, type: 'LOST', title: 'Prescription Glasses', category: 'Accessories', location: 'Sports Complex', time: '2d ago', date: '2 days ago', status: 'Active', match: '62%', img: null, desc: 'Black rectangular frames, power -2.5 both eyes' },
-  { id: 6, type: 'FOUND', title: 'Black Backpack', category: 'Bags', location: 'Parking Area', time: '1d ago', date: 'Yesterday', status: 'Available', match: null, img: null, desc: 'Large black backpack with laptop compartment and phone pocket' },
-  { id: 7, type: 'LOST', title: 'Casio Calculator FX-991', category: 'Electronics', location: 'Computer Lab', time: '3d ago', date: '3 days ago', status: 'Active', match: null, img: null, desc: 'Scientific calculator with name written on back' },
-  { id: 8, type: 'FOUND', title: 'Gold Ring', category: 'Accessories', location: 'Sports Complex', time: '5h ago', date: 'Today', status: 'Available', match: null, img: null, desc: 'Small gold ring, possibly wedding band' },
-]
+// (items will be fetched from API instead)
 
 const statusColors = {
   'AI Matching': 'badge-warning',
@@ -116,11 +108,40 @@ function ItemCard({ item, view }) {
 }
 
 export default function ItemsListing() {
+  const [items, setItems] = useState([])
   const [tab, setTab] = useState('all')
   const [view, setView] = useState('grid')
   const [query, setQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [loading] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const res = await api.get('/items')
+        // Data format mapping:
+        const formattedItems = res.data.map(dbItem => ({
+          id: dbItem.id,
+          type: dbItem.type.toUpperCase(),
+          title: dbItem.title,
+          category: dbItem.category,
+          location: dbItem.location,
+          time: new Date(dbItem.created_at).toLocaleDateString(),
+          date: new Date(dbItem.date).toLocaleDateString(),
+          status: dbItem.status,
+          match: null,
+          img: dbItem.images?.[0] || null,
+          desc: dbItem.description
+        }))
+        setItems(formattedItems)
+      } catch (err) {
+        console.error('Error fetching items', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchItems()
+  }, [])
 
   const filtered = items.filter(item => {
     if (tab === 'lost' && item.type !== 'LOST') return false
