@@ -235,7 +235,7 @@ router.post('/accept-request/:id', authenticate, authorize('super_admin'), async
     // 5. Update request status to approved
     await supabase
       .from('university_requests')
-      .update({ status: 'approved' })
+      .update({ status: 'Accept' })
       .eq('id', id);
 
     res.json({ message: 'University and admin created successfully', university });

@@ -209,7 +209,7 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="table-cell">
-                          <span className={`badge text-xs ${r.status === 'Pending' ? 'badge-warning' : r.status === 'approved' ? 'badge-success' : 'badge-secondary'}`}>
+                          <span className={`badge text-xs ${r.status === 'Pending' ? 'badge-warning' : r.status === 'Accept' ? 'badge-success' : 'badge-secondary'}`}>
                             {r.status}
                           </span>
                         </td>
@@ -217,7 +217,7 @@ export default function AdminDashboard() {
                           {r.status === 'Pending' && (
                             <div className="flex items-center gap-2">
                               <button onClick={() => handleAcceptClick(r)} className="text-xs px-2 py-1 bg-success/10 text-success rounded-lg hover:bg-success/20">Accept</button>
-                              <button onClick={() => handleUpdateStatus(r.id, 'rejected')} className="text-xs px-2 py-1 bg-error/10 text-error rounded-lg hover:bg-error/20">Reject</button>
+                              <button onClick={() => handleUpdateStatus(r.id, 'Reject')} className="text-xs px-2 py-1 bg-error/10 text-error rounded-lg hover:bg-error/20">Reject</button>
                             </div>
                           )}
                           {r.status !== 'Pending' && (
