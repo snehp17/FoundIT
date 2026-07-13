@@ -1,59 +1,104 @@
 require('dotenv').config();
-const { sequelize } = require('./config/db');
-const { User, University, WhitelistedEmail } = require('./models');
+const { createClient } = require('@supabase/supabase-js');
+
+// Must use the Service Role Key to bypass RLS and create users on the backend
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY. Seed requires the service role key.");
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 const seedDatabase = async () => {
   try {
-    // Sync models
-    await sequelize.sync({ force: true }); // This will DROP all tables and recreate them cleanly
-    console.log('Database synced and cleared.');
+    console.log('Starting seed process...');
 
     // 1. Create Universities
-    const parul = await University.create({ name: 'Parul University', location: 'Vadodara' });
-    const itm = await University.create({ name: 'ITM SLS University', location: 'Vadodara' });
-    console.log('Universities created.');
+    console.log('Creating Universities...');
+    const { data: parul, error: pErr } = await supabase
+      .from('universities')
+      .insert({
+        name: 'Parul University',
+        code: 'PU',
+        allowed_domain: '@paruluniversity.ac.in',
+        allow_personal_emails: false,
+        status: 'Active'
+      })
+      .select()
+      .single();
+    if (pErr) console.log('Parul University creation issue (maybe exists?):', pErr.message);
 
-    // 2. Create University Admins
-    await User.create({
-      name: 'Parul Admin',
-      email: 'admin@parul.ac.in',
-      password: 'password123',
-      role: 'university_admin',
-      universityId: parul.id
-    });
+    const { data: silverOak, error: sErr } = await supabase
+      .from('universities')
+      .insert({
+        name: 'Silver Oak University',
+        code: 'SOU',
+        allowed_domain: '@silveroakuni.ac.in',
+        allow_personal_emails: false,
+        status: 'Active'
+      })
+      .select()
+      .single();
+    if (sErr) console.log('Silver Oak University creation issue:', sErr.message);
 
-    await User.create({
-      name: 'ITM Admin',
-      email: 'admin@itm.ac.in',
-      password: 'password123',
-      role: 'university_admin',
-      universityId: itm.id
-    });
-    console.log('University Admins created.');
+    console.log('Universities processed.');
 
-    // 3. Whitelist Some Student Emails
-    await WhitelistedEmail.create({ email: 'priya.sharma@parul.ac.in', universityId: parul.id });
-    await WhitelistedEmail.create({ email: 'rahul.verma@parul.ac.in', universityId: parul.id });
-    await WhitelistedEmail.create({ email: 'amit.patel@itm.ac.in', universityId: itm.id });
-    console.log('Student emails whitelisted.');
+    // Function to safely create user in auth.users and public.profiles
+    const createAuthUser = async (email, password, role, universityId, name) => {
+      // Create user in Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: email,
+        password: password,
+        email_confirm: true,
+        user_metadata: { name, role, university_id: universityId }
+      });
+      
+      if (authError) {
+        console.log(`Auth user creation issue for ${email}:`, authError.message);
+        return;
+      }
+      
+      const userId = authData.user.id;
 
-    // 4. Create Some Students
-    await User.create({
-      name: 'Priya Sharma',
-      email: 'priya.sharma@parul.ac.in',
-      password: 'studentpassword',
-      role: 'student',
-      universityId: parul.id
-    });
+      // Create profile in Database
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          name: name,
+          email: email,
+          role: role,
+          university_id: universityId
+        });
+      
+      if (profileError) {
+        console.log(`Profile creation issue for ${email}:`, profileError.message);
+      } else {
+        console.log(`Successfully created ${role} - ${email}`);
+      }
+    };
 
-    await User.create({
-      name: 'Amit Patel',
-      email: 'amit.patel@itm.ac.in',
-      password: 'studentpassword',
-      role: 'student',
-      universityId: itm.id
-    });
-    console.log('Student accounts created.');
+    // 2. Create Super Admin
+    console.log('Creating Super Admin...');
+    await createAuthUser('admin@foundit.com', 'FoundIT@Admin123', 'super_admin', null, 'Super Admin');
+
+    // 3. Create University Admins
+    console.log('Creating University Admins...');
+    if (parul) {
+      await createAuthUser('admin@paruluniversity.ac.in', 'Parul@123', 'university_admin', parul.id, 'Parul Admin');
+    }
+    
+    if (silverOak) {
+      await createAuthUser('admin@silveroakuni.ac.in', 'SilverOak@123', 'university_admin', silverOak.id, 'Silver Oak Admin');
+    }
 
     console.log('Database seeded successfully!');
     process.exit(0);

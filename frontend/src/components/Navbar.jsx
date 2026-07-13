@@ -6,8 +6,7 @@ import { Search, Bell, Menu, X, ChevronDown, Compass } from 'lucide-react'
 const navLinks = [
   { label: 'Features', href: '#features' },
   { label: 'How it Works', href: '#how-it-works' },
-  { label: 'For Universities', href: '#universities' },
-  { label: 'Pricing', href: '#pricing' },
+  { label: 'Partner University', href: '/partner', isRoute: true },
 ]
 
 export default function Navbar() {
@@ -46,13 +45,23 @@ export default function Navbar() {
           {isLanding && (
             <div className="hidden md:flex items-center gap-1">
               {navLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  className="px-4 py-2 text-sm font-medium text-secondary-600 hover:text-primary rounded-xl hover:bg-primary-50 transition-all duration-200"
-                >
-                  {link.label}
-                </a>
+                link.isRoute ? (
+                  <Link
+                    key={link.label}
+                    to={link.href}
+                    className="px-4 py-2 text-sm font-medium text-secondary-600 hover:text-primary rounded-xl hover:bg-primary-50 transition-all duration-200"
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    className="px-4 py-2 text-sm font-medium text-secondary-600 hover:text-primary rounded-xl hover:bg-primary-50 transition-all duration-200"
+                  >
+                    {link.label}
+                  </a>
+                )
               ))}
             </div>
           )}
@@ -89,14 +98,25 @@ export default function Navbar() {
           >
             <div className="section-container py-4 flex flex-col gap-1">
               {isLanding && navLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="px-4 py-3 text-sm font-medium text-secondary-600 hover:text-primary rounded-xl hover:bg-primary-50 transition-all"
-                >
-                  {link.label}
-                </a>
+                link.isRoute ? (
+                  <Link
+                    key={link.label}
+                    to={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="px-4 py-3 text-sm font-medium text-secondary-600 hover:text-primary rounded-xl hover:bg-primary-50 transition-all"
+                  >
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="px-4 py-3 text-sm font-medium text-secondary-600 hover:text-primary rounded-xl hover:bg-primary-50 transition-all"
+                  >
+                    {link.label}
+                  </a>
+                )
               ))}
               <div className="pt-3 border-t border-secondary-100 flex flex-col gap-2">
                 <Link to="/login" className="btn-secondary text-center justify-center">Sign In</Link>

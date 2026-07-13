@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Compass, ArrowRight, Eye, EyeOff, Mail, Lock, User, Phone, CheckCircle2, Zap } from 'lucide-react'
@@ -7,10 +7,26 @@ import api from '../api'
 export default function LoginPage() {
   const [tab, setTab] = useState('login')
   const [showPass, setShowPass] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', universityId: '1' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', universityId: '' })
+  const [universities, setUniversities] = useState([])
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const fetchUniversities = async () => {
+      try {
+        const response = await api.get('/auth/universities');
+        setUniversities(response.data);
+        if (response.data.length > 0) {
+          setForm(prev => ({ ...prev, universityId: response.data[0].id }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch universities", error);
+      }
+    };
+    fetchUniversities();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -24,19 +40,23 @@ export default function LoginPage() {
           password: form.password
         });
         localStorage.setItem('user', JSON.stringify(response.data));
+        // Add token to api header globally or let interceptor handle it
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         
-        if (response.data.role === 'super_admin' || response.data.role === 'university_admin') {
-          navigate('/admin-dashboard')
+        if (response.data.role === 'super_admin') {
+          navigate('/admin')
+        } else if (response.data.role === 'university_admin') {
+          navigate('/uni-admin')
         } else {
           navigate('/dashboard')
         }
       } else {
         // Register
-        const response = await api.post('/auth/register', {
+        await api.post('/auth/register', {
           name: form.name,
           email: form.email,
           password: form.password,
-          universityId: parseInt(form.universityId, 10)
+          universityId: form.universityId
         });
         
         // Auto-login or redirect
@@ -220,6 +240,19 @@ export default function LoginPage() {
                   required
                 />
               </div>
+              {tab === 'register' && form.universityId && (
+                <div className="text-xs text-secondary-500 pl-1">
+                  {(() => {
+                    const uni = universities.find(u => u.id === form.universityId);
+                    if (uni) {
+                      return uni.allow_personal_emails
+                        ? "You can use any email address."
+                        : `Please use your official email ending in ${uni.allowed_domain}`;
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
 
               {tab === 'register' && (
                 <div className="relative">
@@ -230,8 +263,10 @@ export default function LoginPage() {
                     onChange={(e) => setForm({ ...form, universityId: e.target.value })}
                     required
                   >
-                    <option value="1">Parul University (PU)</option>
-                    <option value="2">ITM SLS University (ITM)</option>
+                    <option value="" disabled>Select your university</option>
+                    {universities.map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.code})</option>
+                    ))}
                   </select>
                 </div>
               )}

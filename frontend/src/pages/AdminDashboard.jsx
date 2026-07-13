@@ -4,68 +4,61 @@ import { useState, useEffect } from 'react'
 import AppLayout from '../components/AppLayout'
 import api from '../api'
 import {
-  Package, Users, CheckCircle2, TrendingUp, AlertTriangle,
-  BarChart2, MapPin, Clock, ChevronRight, Shield, Eye, Trash2
+  Building2, Users, FileText, CheckCircle2,
+  MapPin, ChevronRight, Eye, Trash2, Mail, Phone, Shield
 } from 'lucide-react'
 
-const kpis = [
-  { label: 'Active Reports', value: '347', change: '+18 today', icon: Package, color: 'text-primary', bg: 'bg-primary/10' },
-  { label: 'Registered Users', value: '4,821', change: '+124 this month', icon: Users, color: 'text-violet-600', bg: 'bg-violet-100' },
-  { label: 'Recovery Rate', value: '78%', change: '↑ 5% this week', icon: TrendingUp, color: 'text-accent', bg: 'bg-accent/10' },
-  { label: 'Pending Verification', value: '23', change: '12 urgent', icon: AlertTriangle, color: 'text-warning', bg: 'bg-warning/10' },
-]
-
-const recentReports = [
-  { id: 1, user: 'S2847', item: 'MacBook Pro 14"', category: 'Electronics', location: 'Main Library', time: '2h ago', status: 'Matching', statusColor: 'badge-warning' },
-  { id: 2, user: 'S1209', item: 'Blue Hydroflask', category: 'Personal', location: 'Cafeteria', time: '4h ago', status: 'Verified', statusColor: 'badge-success' },
-  { id: 3, user: 'S3481', item: 'Student ID Card', category: 'Documents', location: 'Bus Stop', time: '1d ago', status: 'Pending', statusColor: 'badge-primary' },
-  { id: 4, user: 'S9021', item: 'AirPods Pro', category: 'Electronics', location: 'Lecture Hall', time: '6h ago', status: 'Claimed', statusColor: 'badge-secondary' },
-  { id: 5, user: 'S5632', item: 'Prescription Glasses', category: 'Accessories', location: 'Sports Complex', time: '2d ago', status: 'Active', statusColor: 'badge-secondary' },
-]
-
-const hotspots = [
-  { location: 'Main Library', count: 89, pct: 78 },
-  { location: 'Cafeteria', count: 67, pct: 58 },
-  { location: 'Sports Complex', count: 45, pct: 39 },
-  { location: 'Bus Stop', count: 32, pct: 28 },
-  { location: 'Computer Lab', count: 21, pct: 18 },
+const kpisTemplate = [
+  { label: 'Partner Universities', value: '0', change: 'Total active', icon: Building2, color: 'text-primary', bg: 'bg-primary/10' },
+  { label: 'Total Users', value: '0', change: 'Across all unis', icon: Users, color: 'text-violet-600', bg: 'bg-violet-100' },
+  { label: 'Pending Requests', value: '0', change: 'New applications', icon: FileText, color: 'text-warning', bg: 'bg-warning/10' },
+  { label: 'Total Items', value: '0', change: 'Lost & Found', icon: Shield, color: 'text-accent', bg: 'bg-accent/10' },
 ]
 
 export default function AdminDashboard() {
-  const [reports, setReports] = useState(recentReports)
-  const [usersCount, setUsersCount] = useState('4,821')
+  const [universities, setUniversities] = useState([])
+  const [requests, setRequests] = useState([])
+  const [kpis, setKpis] = useState(kpisTemplate)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('user'));
-        const [studentsRes, itemsRes] = await Promise.all([
-          api.get(`/admin/students?universityId=${user?.universityId || 1}`),
-          api.get('/items')
+        const [uniRes, reqRes] = await Promise.all([
+          api.get('/admin/universities'),
+          api.get('/admin/requests')
         ]);
         
-        setUsersCount(studentsRes.data.registered.length.toString());
-        
-        const mappedItems = itemsRes.data.map(item => ({
-          id: item.id,
-          user: item.userId || 'Unknown',
-          item: item.title,
-          category: item.category,
-          location: item.location,
-          time: new Date(item.created_at).toLocaleDateString(),
-          status: item.status,
-          statusColor: item.status === 'Available' || item.status === 'Resolved' ? 'badge-success' : 'badge-warning'
-        }));
-        setReports(mappedItems.slice(0, 5));
+        setUniversities(uniRes.data || []);
+        setRequests(reqRes.data || []);
+
+        setKpis(prev => [
+          { ...prev[0], value: uniRes.data.length.toString() },
+          prev[1], // Ideally we'd fetch total users across all unis
+          { ...prev[2], value: reqRes.data.filter(r => r.status === 'Pending').length.toString() },
+          prev[3]  // Ideally we'd fetch total items across all unis
+        ]);
       } catch (err) {
         console.error('Error fetching admin data', err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
   }, [])
 
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      await api.put(`/admin/requests/${id}`, { status: newStatus });
+      setRequests(requests.map(r => r.id === id ? { ...r, status: newStatus } : r));
+    } catch (err) {
+      console.error('Error updating request status', err);
+      alert('Failed to update status');
+    }
+  }
+
   return (
-    <AppLayout title="Admin Dashboard">
+    <AppLayout title="Super Admin Dashboard">
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* KPIs */}
@@ -85,7 +78,7 @@ export default function AdminDashboard() {
                 <span className="text-xs text-accent font-medium">{kpi.change}</span>
               </div>
               <div className={`text-3xl font-bold ${kpi.color} mb-1`}>
-                {kpi.label === 'Registered Users' ? usersCount : kpi.label === 'Active Reports' ? reports.length : kpi.value}
+                {kpi.value}
               </div>
               <div className="text-sm text-secondary-500">{kpi.label}</div>
             </motion.div>
@@ -94,127 +87,89 @@ export default function AdminDashboard() {
 
         {/* Main Grid */}
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Reports Table */}
+          {/* Requests Table */}
           <div className="lg:col-span-2 bg-surface rounded-3xl border border-secondary-100 shadow-md overflow-hidden">
             <div className="px-6 py-4 border-b border-secondary-100 flex items-center justify-between">
-              <h3 className="font-semibold text-secondary-900">Recent Reports</h3>
-              <Link to="/items" className="text-sm text-primary hover:text-primary-700 flex items-center gap-1">
-                View all <ChevronRight className="w-4 h-4" />
-              </Link>
+              <h3 className="font-semibold text-secondary-900">Partner University Requests</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    {['User', 'Item', 'Category', 'Location', 'Time', 'Status', 'Actions'].map(h => (
-                      <th key={h} className="table-header">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.map(r => (
-                    <tr key={r.id} className="hover:bg-secondary-50 transition-colors">
-                      <td className="table-cell font-medium">#{r.user}</td>
-                      <td className="table-cell">{r.item}</td>
-                      <td className="table-cell text-secondary-400">{r.category}</td>
-                      <td className="table-cell">
-                        <div className="flex items-center gap-1 text-xs">
-                          <MapPin className="w-3 h-3 text-secondary-400" />
-                          {r.location}
-                        </div>
-                      </td>
-                      <td className="table-cell text-secondary-400 text-xs">{r.time}</td>
-                      <td className="table-cell">
-                        <span className={`badge text-xs ${r.statusColor}`}>{r.status}</span>
-                      </td>
-                      <td className="table-cell">
-                        <div className="flex items-center gap-1">
-                          <button className="p-1.5 rounded-lg hover:bg-primary/10 text-secondary-400 hover:text-primary transition-colors">
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button className="p-1.5 rounded-lg hover:bg-error/10 text-secondary-400 hover:text-error transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
+              {loading ? (
+                <div className="p-8 text-center text-secondary-500">Loading requests...</div>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      {['University', 'Contact Person', 'Email', 'Status', 'Actions'].map(h => (
+                        <th key={h} className="table-header">{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {requests.map(r => (
+                      <tr key={r.id} className="hover:bg-secondary-50 transition-colors">
+                        <td className="table-cell font-medium">{r.university_name}</td>
+                        <td className="table-cell">{r.contact_person}</td>
+                        <td className="table-cell text-secondary-400">
+                          <div className="flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {r.official_email}
+                          </div>
+                        </td>
+                        <td className="table-cell">
+                          <span className={`badge text-xs ${r.status === 'Pending' ? 'badge-warning' : r.status === 'Accept' ? 'badge-success' : 'badge-secondary'}`}>
+                            {r.status}
+                          </span>
+                        </td>
+                        <td className="table-cell">
+                          {r.status === 'Pending' && (
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleUpdateStatus(r.id, 'Accept')} className="text-xs px-2 py-1 bg-success/10 text-success rounded-lg hover:bg-success/20">Accept</button>
+                              <button onClick={() => handleUpdateStatus(r.id, 'Reject')} className="text-xs px-2 py-1 bg-error/10 text-error rounded-lg hover:bg-error/20">Reject</button>
+                            </div>
+                          )}
+                          {r.status !== 'Pending' && (
+                            <span className="text-xs text-secondary-400">Done</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {requests.length === 0 && (
+                      <tr>
+                        <td colSpan="5" className="p-4 text-center text-sm text-secondary-500">No requests found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
 
           {/* Sidebar widgets */}
           <div className="space-y-4">
-            {/* Recovery Chart */}
+            {/* Active Universities */}
             <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-5">
-              <h3 className="font-semibold text-secondary-900 mb-4 text-sm">7-Day Recovery Trend</h3>
-              <div className="flex items-end gap-2 h-20">
-                {[45, 62, 58, 71, 80, 76, 89].map((h, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ height: 0 }}
-                    animate={{ height: `${h}%` }}
-                    transition={{ duration: 0.6, delay: i * 0.08 }}
-                    className="flex-1 rounded-t-lg bg-gradient-to-br from-blue-600 to-blue-800"
-                  />
-                ))}
-              </div>
-              <div className="flex justify-between mt-2">
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                  <span key={i} className="text-xs text-secondary-400 flex-1 text-center">{d}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Hotspots */}
-            <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-5">
-              <h3 className="font-semibold text-secondary-900 mb-4 text-sm flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-error" />
-                Loss Hotspots
+              <h3 className="font-semibold text-secondary-900 mb-4 flex items-center justify-between">
+                Active Universities
+                <span className="text-xs bg-primary-50 text-primary px-2 py-1 rounded-full">{universities.length}</span>
               </h3>
-              <div className="space-y-3">
-                {hotspots.map((spot, i) => (
-                  <div key={i}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-secondary-600">{spot.location}</span>
-                      <span className="font-semibold text-secondary-900">{spot.count}</span>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {loading ? (
+                  <p className="text-sm text-secondary-400 text-center py-4">Loading universities...</p>
+                ) : universities.length > 0 ? (
+                  universities.map((uni, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-secondary-100 hover:border-primary-200 transition-colors">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
+                        {uni.code}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-secondary-900 truncate">{uni.name}</div>
+                        <div className="text-xs text-secondary-500 truncate">Domain: {uni.allowed_domain}</div>
+                      </div>
                     </div>
-                    <div className="progress-bar">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${spot.pct}%` }}
-                        transition={{ duration: 0.8, delay: i * 0.1 }}
-                        className="progress-fill"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Links */}
-            <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-5">
-              <h3 className="font-semibold text-secondary-900 mb-4 text-sm">Admin Actions</h3>
-              <div className="space-y-2">
-                {[
-                  { icon: Shield, label: 'Review Verifications', path: '/moderator', count: 23 },
-                  { icon: BarChart2, label: 'View Analytics', path: '/analytics', count: null },
-                  { icon: Users, label: 'Manage Users', path: '#', count: null },
-                ].map(action => (
-                  <Link
-                    key={action.label}
-                    to={action.path}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary-50 transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <action.icon className="w-4 h-4 text-primary" />
-                    </div>
-                    <span className="flex-1 text-sm font-medium text-secondary-900">{action.label}</span>
-                    {action.count && <span className="badge-error text-xs">{action.count}</span>}
-                    <ChevronRight className="w-4 h-4 text-secondary-400" />
-                  </Link>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-secondary-400 text-center py-4">No universities found.</p>
+                )}
               </div>
             </div>
           </div>

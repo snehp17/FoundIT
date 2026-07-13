@@ -1,15 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../config/db');
+const supabase = require('../config/supabase');
+const { authenticate, authorize } = require('../middleware/auth');
 
-// SUPER ADMIN: Create a University
-router.post('/universities', async (req, res) => {
+// ==========================================
+// SUPER ADMIN ROUTES
+// ==========================================
+
+// Create a University
+router.post('/universities', authenticate, authorize('super_admin'), async (req, res) => {
   try {
-    const { name, location } = req.body;
+    const { name, code, allowed_domain, allow_personal_emails } = req.body;
     
     const { data: university, error } = await supabase
       .from('universities')
-      .insert([{ name, location }])
+      .insert([{ name, code, allowed_domain, allow_personal_emails }])
       .select()
       .single();
 
@@ -22,8 +27,24 @@ router.post('/universities', async (req, res) => {
   }
 });
 
-// SUPER ADMIN: Create University Admin
-router.post('/university-admin', async (req, res) => {
+// Get all universities
+router.get('/universities', authenticate, authorize('super_admin'), async (req, res) => {
+  try {
+    const { data: universities, error } = await supabase
+      .from('universities')
+      .select('*')
+      .order('name');
+      
+    if (error) throw error;
+    res.json(universities || []);
+  } catch (error) {
+    console.error('Error fetching universities:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create University Admin
+router.post('/university-admin', authenticate, authorize('super_admin'), async (req, res) => {
   try {
     const { name, email, password, universityId } = req.body;
     
@@ -38,30 +59,32 @@ router.post('/university-admin', async (req, res) => {
       return res.status(404).json({ message: 'University not found' });
     }
 
-    // Check if user already exists
-    const { data: existingUser, error: existError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
+    // Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true,
+      user_metadata: { name, role: 'university_admin', university_id: universityId }
+    });
 
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+    if (authError) {
+      return res.status(400).json({ message: authError.message });
     }
 
-    const { data: admin, error: insertError } = await supabase
-      .from('users')
+    // Create profile
+    const { data: admin, error: profileError } = await supabase
+      .from('profiles')
       .insert([{
+        id: authData.user.id,
         name,
         email,
-        password, // In production, we should hash this
         role: 'university_admin',
-        universityId
+        university_id: universityId
       }])
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (profileError) throw profileError;
 
     res.json({ message: 'University Admin created successfully', admin });
   } catch (error) {
@@ -70,92 +93,67 @@ router.post('/university-admin', async (req, res) => {
   }
 });
 
-// UNIVERSITY ADMIN: Add student email to whitelist
-router.post('/students/whitelist', async (req, res) => {
+// Get Partner Requests
+router.get('/requests', authenticate, authorize('super_admin'), async (req, res) => {
   try {
-    const { email, universityId } = req.body;
-    // We should ideally check if the requesting user is a university_admin and their universityId matches.
-    // For this prototype, we'll assume the client sends the correct universityId.
-    
-    const { data: existing, error: existError } = await supabase
-      .from('whitelisted_emails')
+    const { data: requests, error } = await supabase
+      .from('university_requests')
       .select('*')
-      .eq('email', email)
-      .eq('universityId', universityId)
-      .maybeSingle();
+      .order('created_at', { ascending: false });
 
-    if (existing) {
-      return res.status(400).json({ message: 'Email is already whitelisted' });
-    }
+    if (error) throw error;
+    res.json(requests || []);
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
-    const { data: whitelisted, error: insertError } = await supabase
-      .from('whitelisted_emails')
-      .insert([{ email, universityId }])
+// Update Partner Request Status
+router.put('/requests/:id', authenticate, authorize('super_admin'), async (req, res) => {
+  try {
+    const { status } = req.body;
+    const { id } = req.params;
+
+    const { data: request, error } = await supabase
+      .from('university_requests')
+      .update({ status })
+      .eq('id', id)
       .select()
       .single();
 
-    if (insertError) throw insertError;
-
-    res.json({ message: 'Email whitelisted successfully', whitelisted });
-  } catch (error) {
-    console.error('Error whitelisting email:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// UNIVERSITY ADMIN: Remove student email from whitelist
-router.delete('/students/whitelist/:email', async (req, res) => {
-  try {
-    const { email } = req.params;
-    // Assuming universityId is sent in body or query for prototype simplicity
-    const universityId = req.body.universityId || req.query.universityId;
-
-    const { data, error } = await supabase
-      .from('whitelisted_emails')
-      .delete()
-      .eq('email', email)
-      .eq('universityId', universityId)
-      .select();
-
     if (error) throw error;
-    if (!data || data.length === 0) {
-      return res.status(404).json({ message: 'Email not found in whitelist' });
-    }
-
-    res.json({ message: 'Email removed from whitelist successfully' });
+    res.json({ message: 'Request updated', request });
   } catch (error) {
-    console.error('Error removing email from whitelist:', error);
+    console.error('Error updating request:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// UNIVERSITY ADMIN: View all whitelisted and registered students
-router.get('/students', async (req, res) => {
+// ==========================================
+// UNIVERSITY ADMIN ROUTES
+// ==========================================
+
+// Get all students for the university
+router.get('/students', authenticate, authorize(['university_admin', 'super_admin']), async (req, res) => {
   try {
-    const universityId = req.query.universityId;
+    // If super admin, they might pass universityId in query. If uni admin, use from token.
+    const universityId = req.user.role === 'university_admin' ? req.user.university_id : req.query.universityId;
+
     if (!universityId) {
       return res.status(400).json({ message: 'universityId is required' });
     }
 
-    const { data: whitelisted, error: whiteError } = await supabase
-      .from('whitelisted_emails')
-      .select('email')
-      .eq('universityId', universityId);
-
-    if (whiteError) throw whiteError;
-
-    const { data: registered, error: regError } = await supabase
-      .from('users')
+    const { data: students, error } = await supabase
+      .from('profiles')
       .select('id, name, email')
-      .eq('universityId', universityId)
-      .eq('role', 'student');
+      .eq('university_id', universityId)
+      .eq('role', 'student')
+      .order('name');
 
-    if (regError) throw regError;
+    if (error) throw error;
 
-    res.json({
-      whitelisted: (whitelisted || []).map(w => w.email),
-      registered: registered || []
-    });
+    res.json(students || []);
   } catch (error) {
     console.error('Error fetching students:', error);
     res.status(500).json({ message: 'Server error' });
