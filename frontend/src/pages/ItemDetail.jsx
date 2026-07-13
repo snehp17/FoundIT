@@ -111,8 +111,8 @@ export default function ItemDetail() {
                     { icon: Tag, label: 'Brand', value: item.brand || 'N/A' },
                     { icon: Tag, label: 'Color', value: item.primary_color || 'N/A' },
                     { icon: MapPin, label: 'Last Location', value: item.location },
-                    { icon: Clock, label: 'Date', value: new Date(item.date_lost_found).toLocaleDateString() },
-                    { icon: Clock, label: 'Time', value: item.time_lost_found },
+                    { icon: Clock, label: 'Date', value: item.date ? new Date(item.date).toLocaleDateString() : 'N/A' },
+                    { icon: Clock, label: 'Time', value: item.time || 'N/A' },
                   ].map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-center gap-3 bg-secondary-50 rounded-xl p-3">
                       <Icon className="w-4 h-4 text-secondary-400 flex-shrink-0" />

@@ -80,7 +80,13 @@ router.get("/:id", authenticate, async (req, res) => {
     
     const { data: item, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      console.error("Supabase error:", error);
+      throw error;
+    }
     if (!item) return res.status(404).json({ message: "Item not found" });
 
     // Super admin can see all, otherwise filter by university_id
@@ -91,7 +97,7 @@ router.get("/:id", authenticate, async (req, res) => {
     res.json(item);
   } catch (error) {
     console.error("Error fetching item:", error);
-    res.status(500).json({ message: "Server error while fetching item" });
+    res.status(500).json({ message: "Server error while fetching item", error: error.message });
   }
 });
 
