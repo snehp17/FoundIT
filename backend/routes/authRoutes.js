@@ -135,7 +135,7 @@ router.post("/university-request", async (req, res) => {
 
     if (error) {
       console.error("Supabase insert error:", error);
-      return res.status(400).json({ message: "Failed to submit request" });
+      return res.status(400).json({ message: "Failed to submit request: " + error.message });
     }
 
     // Find super_admin
