@@ -72,4 +72,27 @@ router.get("/", authenticate, async (req, res) => {
   }
 });
 
+// GET - Single item by ID
+router.get("/:id", authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    let query = supabase.from('items').select('*, profiles(name, email)').eq('id', id).single();
+    
+    const { data: item, error } = await query;
+
+    if (error) throw error;
+    if (!item) return res.status(404).json({ message: "Item not found" });
+
+    // Super admin can see all, otherwise filter by university_id
+    if (req.user.role !== 'super_admin' && item.university_id !== req.user.university_id) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.json(item);
+  } catch (error) {
+    console.error("Error fetching item:", error);
+    res.status(500).json({ message: "Server error while fetching item" });
+  }
+});
+
 module.exports = router;

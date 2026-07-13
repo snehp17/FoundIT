@@ -1,27 +1,14 @@
-import { Link, useParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
+import api from '../api'
 import {
   MapPin, Clock, Tag, Brain, ShieldCheck, MessageSquare,
-  ChevronRight, CheckCircle2, Circle, ArrowRight, Share2, Flag
+  ChevronRight, CheckCircle2, Circle, ArrowRight, Share2, Flag, Loader
 } from 'lucide-react'
 
-const itemData = {
-  id: 1,
-  type: 'LOST',
-  title: 'MacBook Pro 14" Silver',
-  category: 'Electronics',
-  brand: 'Apple',
-  color: 'Space Gray',
-  location: 'Main Library',
-  date: 'June 19, 2025',
-  time: '2:30 PM',
-  desc: 'Space gray M3 MacBook Pro 14-inch with a blue holographic sticker on the lid near the Apple logo. Has a small scratch on the bottom left corner. The laptop bag was not with it.',
-  reportedBy: 'Student #S2847',
-  status: 'AI Matching',
-  match: '87%',
-}
-
+// Using dynamic data instead of hardcoded itemData
 const timeline = [
   { label: 'Reported', time: 'Jun 19, 2:35 PM', done: true },
   { label: 'Categorized by AI', time: 'Jun 19, 2:36 PM', done: true },
@@ -39,6 +26,39 @@ const similarMatches = [
 
 export default function ItemDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const [item, setItem] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchItem = async () => {
+      try {
+        const response = await api.get(`/items/${id}`)
+        setItem(response.data)
+      } catch (error) {
+        console.error("Error fetching item:", error)
+        // If not found or unauthorized
+        if (error.response && (error.response.status === 404 || error.response.status === 403)) {
+          navigate('/items')
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchItem()
+  }, [id, navigate])
+
+  if (loading) {
+    return (
+      <AppLayout title="Item Details">
+        <div className="flex items-center justify-center h-64">
+          <Loader className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (!item) return null;
 
   return (
     <AppLayout title="Item Details">
@@ -47,7 +67,7 @@ export default function ItemDetail() {
         <nav className="flex items-center gap-2 text-sm text-secondary-400">
           <Link to="/items" className="hover:text-primary transition-colors">Browse Items</Link>
           <ChevronRight className="w-4 h-4" />
-          <span className="text-secondary-900 font-medium">{itemData.title}</span>
+          <span className="text-secondary-900 font-medium">{item.title}</span>
         </nav>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -60,18 +80,20 @@ export default function ItemDetail() {
               className="bg-surface rounded-3xl border border-secondary-100 shadow-md overflow-hidden"
             >
               <div className="h-64 bg-secondary-50 flex items-center justify-center text-8xl relative">
-                💻
+                {item.category === 'electronics' ? '💻' : item.category === 'documents' ? '📄' : item.category === 'keys' ? '🔑' : '📦'}
                 <div className="absolute top-4 left-4">
-                  <span className="badge badge-error">LOST</span>
+                  <span className={`badge ${item.type === 'LOST' ? 'badge-error' : 'badge-success'}`}>{item.type}</span>
                 </div>
+                {item.type === 'LOST' && (
                 <div className="absolute top-4 right-4 bg-surface/90 backdrop-blur rounded-xl px-3 py-1.5 flex items-center gap-1.5 shadow-sm">
                   <Brain className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-bold text-primary">{itemData.match} AI Match</span>
+                  <span className="text-sm font-bold text-primary">AI Matching Active</span>
                 </div>
+                )}
               </div>
               <div className="p-5">
                 <div className="flex items-start justify-between mb-3">
-                  <h1 className="text-2xl font-display font-bold text-secondary-900">{itemData.title}</h1>
+                  <h1 className="text-2xl font-display font-bold text-secondary-900">{item.title}</h1>
                   <div className="flex gap-2">
                     <button className="p-2 rounded-xl hover:bg-secondary-100 transition-colors text-secondary-500">
                       <Share2 className="w-4 h-4" />
@@ -81,22 +103,22 @@ export default function ItemDetail() {
                     </button>
                   </div>
                 </div>
-                <p className="text-secondary-600 leading-relaxed mb-5">{itemData.desc}</p>
+                <p className="text-secondary-600 leading-relaxed mb-5">{item.description}</p>
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   {[
-                    { icon: Tag, label: 'Category', value: itemData.category },
-                    { icon: Tag, label: 'Brand', value: itemData.brand },
-                    { icon: Tag, label: 'Color', value: itemData.color },
-                    { icon: MapPin, label: 'Last Location', value: itemData.location },
-                    { icon: Clock, label: 'Date Lost', value: itemData.date },
-                    { icon: Clock, label: 'Time', value: itemData.time },
+                    { icon: Tag, label: 'Category', value: item.category },
+                    { icon: Tag, label: 'Brand', value: item.brand || 'N/A' },
+                    { icon: Tag, label: 'Color', value: item.primary_color || 'N/A' },
+                    { icon: MapPin, label: 'Last Location', value: item.location },
+                    { icon: Clock, label: 'Date', value: new Date(item.date_lost_found).toLocaleDateString() },
+                    { icon: Clock, label: 'Time', value: item.time_lost_found },
                   ].map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-center gap-3 bg-secondary-50 rounded-xl p-3">
                       <Icon className="w-4 h-4 text-secondary-400 flex-shrink-0" />
                       <div>
                         <div className="text-xs text-secondary-400">{label}</div>
-                        <div className="text-sm font-medium text-secondary-900">{value}</div>
+                        <div className="text-sm font-medium text-secondary-900 capitalize">{value}</div>
                       </div>
                     </div>
                   ))}
@@ -163,10 +185,10 @@ export default function ItemDetail() {
               <h3 className="font-semibold text-secondary-900 mb-3 text-sm">Reported By</h3>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-bold text-sm">
-                  S
+                  {item.profiles?.name?.charAt(0).toUpperCase() || 'A'}
                 </div>
                 <div>
-                  <div className="font-medium text-secondary-900 text-sm">Anonymous Student</div>
+                  <div className="font-medium text-secondary-900 text-sm">{item.profiles?.name || 'Anonymous Student'}</div>
                   <div className="text-xs text-secondary-400">Verified University Member</div>
                 </div>
                 <ShieldCheck className="w-4 h-4 text-accent ml-auto" />
