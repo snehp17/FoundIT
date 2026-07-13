@@ -118,11 +118,10 @@ export default function MyReports() {
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const res = await api.get('/items')
-        const user = JSON.parse(localStorage.getItem('user'))
-        const myItems = res.data.filter(item => item.user_id === user?.id)
+        const res = await api.get('/items/user/my-reports')
+        
         // Data format mapping:
-        const formattedItems = myItems.map(dbItem => ({
+        const formattedItems = res.data.map(dbItem => ({
           id: dbItem.id,
           type: dbItem.type.toUpperCase(),
           title: dbItem.title,

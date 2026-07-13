@@ -72,6 +72,25 @@ router.get("/", authenticate, async (req, res) => {
   }
 });
 
+// GET - Current user's reports
+router.get("/user/my-reports", authenticate, async (req, res) => {
+  try {
+    let query = supabase.from('items')
+      .select('*, profiles(name, email)')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    const { data: items, error } = await query;
+
+    if (error) throw error;
+
+    res.json(items || []);
+  } catch (error) {
+    console.error("Error fetching user items:", error);
+    res.status(500).json({ message: "Server error while fetching your items" });
+  }
+});
+
 // GET - Single item by ID
 router.get("/:id", authenticate, async (req, res) => {
   try {
