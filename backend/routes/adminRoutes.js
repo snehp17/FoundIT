@@ -43,6 +43,25 @@ router.get('/universities', authenticate, authorize('super_admin'), async (req, 
   }
 });
 
+// Delete a university
+router.delete('/universities/:id', authenticate, authorize('super_admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Deleting the university will cascade to profiles, items, etc. due to `on delete cascade` in schema
+    const { error } = await supabase
+      .from('universities')
+      .delete()
+      .eq('id', id);
+      
+    if (error) throw error;
+    res.json({ message: 'University deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting university:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Create University Admin
 router.post('/university-admin', authenticate, authorize('super_admin'), async (req, res) => {
   try {

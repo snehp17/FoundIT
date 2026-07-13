@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
-import { Bell, Search, User } from 'lucide-react'
+import { Bell, Search, User, LogOut } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../api'
@@ -9,6 +9,12 @@ export default function AppLayout({ children, title }) {
   const [collapsed, setCollapsed] = useState(false)
   const [user, setUser] = useState(null)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+
+  const handleLogout = () => {
+    localStorage.removeItem('user')
+    window.location.href = '/login'
+  }
 
   useEffect(() => {
     const userStr = localStorage.getItem('user')
@@ -74,12 +80,29 @@ export default function AppLayout({ children, title }) {
               )}
             </Link>
 
-            {/* Profile */}
-            <Link to="/profile" className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-secondary-100 transition-colors">
-              <div className={`w-8 h-8 rounded-full ${isSuperAdmin ? 'bg-gradient-to-br from-purple-600 to-purple-800' : 'bg-gradient-to-br from-blue-600 to-blue-800'} flex items-center justify-center text-white text-sm font-bold`}>
-                {initial}
-              </div>
-            </Link>
+            {/* Profile Dropdown */}
+            <div className="relative">
+              <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-secondary-100 transition-colors">
+                <div className={`w-8 h-8 rounded-full ${isSuperAdmin ? 'bg-gradient-to-br from-purple-600 to-purple-800' : 'bg-gradient-to-br from-blue-600 to-blue-800'} flex items-center justify-center text-white text-sm font-bold`}>
+                  {initial}
+                </div>
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-surface rounded-xl border border-secondary-100 shadow-lg py-1 z-50">
+                  <div className="px-4 py-2 border-b border-secondary-100">
+                    <p className="text-sm font-medium text-secondary-900 truncate">{user?.name || 'User'}</p>
+                    <p className="text-xs text-secondary-500 truncate">{user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'university_admin' ? 'University Admin' : 'Student'}</p>
+                  </div>
+                  <Link onClick={() => setDropdownOpen(false)} to="/profile" className="flex items-center gap-2 px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 transition-colors">
+                    <User className="w-4 h-4" /> My Profile
+                  </Link>
+                  <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-error hover:bg-error/10 transition-colors text-left">
+                    <LogOut className="w-4 h-4" /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

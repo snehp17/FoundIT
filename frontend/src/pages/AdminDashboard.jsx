@@ -71,6 +71,17 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleDeleteUniversity = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this university? This will remove all associated users, items, and claims.')) return;
+    try {
+      await api.delete(`/admin/universities/${id}`);
+      fetchData();
+    } catch (err) {
+      console.error('Error deleting university', err);
+      alert('Failed to delete university');
+    }
+  }
+
   const handleAcceptClick = (request) => {
     setSelectedRequest(request)
     setModalForm({
@@ -200,7 +211,7 @@ export default function AdminDashboard() {
                   <p className="text-sm text-secondary-400 text-center py-4">Loading universities...</p>
                 ) : universities.length > 0 ? (
                   universities.map((uni, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-secondary-100 hover:border-primary-200 transition-colors">
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-secondary-100 hover:border-primary-200 transition-colors group">
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
                         {uni.code}
                       </div>
@@ -208,6 +219,9 @@ export default function AdminDashboard() {
                         <div className="text-sm font-medium text-secondary-900 truncate">{uni.name}</div>
                         <div className="text-xs text-secondary-500 truncate">Domain: {uni.allowed_domain}</div>
                       </div>
+                      <button onClick={() => handleDeleteUniversity(uni.id)} className="p-1.5 text-error opacity-0 group-hover:opacity-100 hover:bg-error/10 rounded-lg transition-all" title="Remove University">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ))
                 ) : (
