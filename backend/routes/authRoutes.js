@@ -58,6 +58,7 @@ router.post("/register", async (req, res) => {
     const userId = authData.user.id;
 
     // Create profile in public.profiles
+    console.log("Using supabase key:", supabase.supabaseKey.substring(0, 15) + "...");
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({

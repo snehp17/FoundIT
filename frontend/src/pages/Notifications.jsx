@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
 import { Brain, CheckCircle2, Bell, Info, Check, Trash2, Filter } from 'lucide-react'
@@ -43,6 +44,7 @@ function getColorForType(type) {
 }
 
 export default function Notifications() {
+  const navigate = useNavigate()
   const [filter, setFilter] = useState('all')
   const [notifs, setNotifs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -143,14 +145,19 @@ export default function Notifications() {
                     const Icon = getIconForType(notif.type);
                     const colorClass = getColorForType(notif.type);
                     return (
-                      <motion.div
-                        key={notif.id}
-                        layout
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20, height: 0 }}
-                        className={`bg-surface rounded-2xl border shadow-md p-4 flex items-start gap-4 ${notif.is_read ? 'border-secondary-100' : 'border-primary/20 bg-primary-50/30'}`}
-                      >
+                        <motion.div
+                          key={notif.id}
+                          layout
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20, height: 0 }}
+                          onClick={() => {
+                            if (notif.type === 'match' && notif.meta_data) {
+                              navigate(`/matches?foundId=${notif.meta_data.found_item_id}&lostId=${notif.meta_data.lost_item_id}`)
+                            }
+                          }}
+                          className={`bg-surface rounded-2xl border shadow-md p-4 flex items-start gap-4 ${notif.is_read ? 'border-secondary-100' : 'border-primary/20 bg-primary-50/30'} ${notif.type === 'match' ? 'cursor-pointer hover:border-primary/50' : ''}`}
+                        >
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
                           <Icon className="w-5 h-5" />
                         </div>

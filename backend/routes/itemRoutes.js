@@ -41,6 +41,29 @@ router.post("/report", authenticate, upload.single("image"), async (req, res) =>
 
     if (error) throw error;
 
+    // --- Smart Match Logic ---
+    if (item.type === 'FOUND' && item.category) {
+      const { data: lostItems, error: lostItemsError } = await supabase
+        .from('items')
+        .select('id, user_id, title')
+        .eq('type', 'LOST')
+        .eq('category', item.category)
+        .eq('university_id', item.university_id)
+        .eq('status', 'Active');
+
+      if (!lostItemsError && lostItems && lostItems.length > 0) {
+        const notifications = lostItems.map(lostItem => ({
+          user_id: lostItem.user_id,
+          type: 'match',
+          meta_data: { found_item_id: item.id, lost_item_id: lostItem.id, finder_id: req.user.id },
+          title: 'Potential Match Found!',
+          message: `A found item "${item.title}" might match your lost item "${lostItem.title}". Click here to open secure chat with the finder.`,
+        }));
+        
+        await supabase.from('notifications').insert(notifications);
+      }
+    }
+
     res.json({ message: "Item reported successfully", item });
   } catch (error) {
     console.error("Error saving item:", error);

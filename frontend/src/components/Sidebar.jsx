@@ -16,7 +16,7 @@ const studentItems = [
   { icon: TrendingUp, label: 'Smart Matches', path: '/matches' },
   { icon: MessageSquare, label: 'Secure Chat', path: '/chat' },
   { icon: MapPin, label: 'Tracking', path: '/tracking/1' },
-  { icon: Bell, label: 'Notifications', path: '/notifications', badge: 3 },
+  { icon: Bell, label: 'Notifications', path: '/notifications' },
 ]
 
 const superAdminItems = [
@@ -35,7 +35,7 @@ const uniAdminItems = [
   { icon: Shield, label: 'Moderator', path: '/moderator' },
 ]
 
-export default function Sidebar({ collapsed, setCollapsed }) {
+export default function Sidebar({ collapsed, setCollapsed, unreadCount = 0 }) {
   const location = useLocation()
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
@@ -50,7 +50,10 @@ export default function Sidebar({ collapsed, setCollapsed }) {
   }, [])
 
   const role = user?.role || 'student'
-  const itemsToRender = role === 'super_admin' ? superAdminItems : role === 'university_admin' ? uniAdminItems : studentItems
+  const baseItems = role === 'super_admin' ? superAdminItems : role === 'university_admin' ? uniAdminItems : studentItems
+  const itemsToRender = baseItems.map(item => 
+    item.path === '/notifications' && unreadCount > 0 ? { ...item, badge: unreadCount } : item
+  )
 
   const handleLogout = () => {
     localStorage.removeItem('user')

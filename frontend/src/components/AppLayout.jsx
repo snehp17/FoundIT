@@ -48,7 +48,7 @@ export default function AppLayout({ children, title }) {
 
   return (
     <div className="min-h-screen bg-secondary-50 flex">
-      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} unreadCount={unreadCount} />
 
       {/* Main content */}
       <motion.main

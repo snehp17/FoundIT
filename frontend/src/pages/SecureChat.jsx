@@ -1,37 +1,144 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useSearchParams } from 'react-router-dom'
 import AppLayout from '../components/AppLayout'
 import { Send, Paperclip, CheckCheck, Shield, MoreVertical, Search } from 'lucide-react'
-
-const conversations = [
-  { id: 1, name: 'Finder #F2847', item: 'MacBook Pro 14"', lastMsg: 'Yes, it does have a blue sticker!', time: '2m ago', unread: 2, status: 'Active' },
-  { id: 2, name: 'Student #S9341', item: 'Blue Hydroflask', lastMsg: 'When can I pick it up?', time: '1h ago', unread: 0, status: 'Active' },
-  { id: 3, name: 'Finder #F1123', item: 'Student ID Card', lastMsg: 'Recovery complete ✓', time: '2d ago', unread: 0, status: 'Resolved' },
-]
-
-const messages = [
-  { id: 1, from: 'them', text: 'Hi! I found a MacBook Pro near the library entrance. Is it yours?', time: '2:30 PM' },
-  { id: 2, from: 'me', text: "Yes! I lost it this afternoon. It has a blue holographic sticker on the lid.", time: '2:32 PM' },
-  { id: 3, from: 'them', text: 'Yes, it does have a blue sticker! Can you describe any other marks?', time: '2:33 PM' },
-  { id: 4, from: 'me', text: 'There is a small scratch on the bottom left corner.', time: '2:34 PM' },
-  { id: 5, from: 'them', text: "Perfect, that matches! I've submitted to the moderator. Let's arrange pickup through the campus office.", time: '2:35 PM' },
-]
+import api from '../api'
 
 export default function SecureChat() {
-  const [activeConv, setActiveConv] = useState(conversations[0])
+  const currentUser = JSON.parse(localStorage.getItem('user')) || {}
+  const [searchParams] = useSearchParams()
+  const initialPeerId = searchParams.get('peerId')
+  const initialItemId = searchParams.get('itemId')
+
+  const [loading, setLoading] = useState(true)
+  const [conversations, setConversations] = useState([])
+  const [activeConv, setActiveConv] = useState(null)
   const [input, setInput] = useState('')
-  const [msgs, setMsgs] = useState(messages)
+  const [msgs, setMsgs] = useState([])
   const bottomRef = useRef()
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [msgs])
 
-  const sendMessage = () => {
-    if (!input.trim()) return
-    setMsgs(prev => [...prev, { id: Date.now(), from: 'me', text: input, time: 'Now' }])
-    setInput('')
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const res = await api.get('/messages')
+        const allMessages = res.data
+        
+        const convMap = new Map()
+        
+        allMessages.forEach(m => {
+          const isSender = m.sender_id === currentUser.id
+          const peerId = isSender ? m.receiver_id : m.sender_id
+          const peerName = isSender ? m.receiver?.name : m.sender?.name
+          const key = `${peerId}_${m.item_id}`
+          
+          if (!convMap.has(key)) {
+            convMap.set(key, {
+              id: key,
+              peerId,
+              itemId: m.item_id,
+              name: peerName || 'User',
+              item: m.item?.title || 'Item',
+              msgs: [],
+              lastMsg: '',
+              time: '',
+              unread: 0
+            })
+          }
+          
+          const conv = convMap.get(key)
+          const formattedMsg = {
+            id: m.id,
+            from: isSender ? 'me' : 'them',
+            text: m.text,
+            time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+          
+          conv.msgs.push(formattedMsg)
+          conv.lastMsg = m.text
+          conv.time = formattedMsg.time
+        })
+
+        let convList = Array.from(convMap.values())
+        
+        if (initialPeerId && initialItemId) {
+          const initialKey = `${initialPeerId}_${initialItemId}`
+          if (!convMap.has(initialKey)) {
+             convList.unshift({
+                id: initialKey,
+                peerId: initialPeerId,
+                itemId: initialItemId,
+                name: 'Match User',
+                item: 'Matched Item',
+                msgs: [],
+                lastMsg: 'Start a conversation...',
+                time: 'Now',
+                unread: 0
+             })
+          }
+        }
+        
+        setConversations(convList)
+        
+        if (initialPeerId && initialItemId) {
+          const active = convList.find(c => c.id === `${initialPeerId}_${initialItemId}`)
+          if (active) {
+            setActiveConv(active)
+            setMsgs(active.msgs)
+          }
+        } else if (convList.length > 0) {
+          setActiveConv(convList[0])
+          setMsgs(convList[0].msgs)
+        }
+      } catch (err) {
+        console.error("Error fetching messages:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    if (currentUser.id) {
+        fetchMessages()
+    }
+  }, [initialPeerId, initialItemId, currentUser.id])
+
+  const handleConvClick = (conv) => {
+    setActiveConv(conv)
+    setMsgs(conv.msgs)
   }
+
+  const sendMessage = async () => {
+    if (!input.trim() || !activeConv) return
+    try {
+      const res = await api.post('/messages', {
+        receiver_id: activeConv.peerId,
+        item_id: activeConv.itemId,
+        text: input
+      })
+      
+      const newMsgData = res.data.data
+      const newMsg = {
+        id: newMsgData.id,
+        from: 'me',
+        text: newMsgData.text,
+        time: new Date(newMsgData.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+      
+      setMsgs(prev => [...prev, newMsg])
+      setConversations(prev => prev.map(c => 
+        c.id === activeConv.id ? { ...c, msgs: [...c.msgs, newMsg], lastMsg: newMsg.text, time: newMsg.time } : c
+      ))
+      setInput('')
+    } catch(err) {
+      console.error("Error sending message:", err)
+    }
+  }
+
+  if (loading) return <AppLayout title="Secure Chat"><div className="p-8 text-center">Loading chats...</div></AppLayout>
 
   return (
     <AppLayout title="Secure Chat">
@@ -46,11 +153,13 @@ export default function SecureChat() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-secondary-100">
-            {conversations.map(conv => (
+            {conversations.length === 0 ? (
+                <div className="p-4 text-center text-sm text-secondary-400">No conversations yet</div>
+            ) : conversations.map(conv => (
               <button
                 key={conv.id}
-                onClick={() => setActiveConv(conv)}
-                className={`w-full text-left p-4 hover:bg-secondary-50 transition-colors ${activeConv.id === conv.id ? 'bg-primary-50 border-l-2 border-primary' : ''}`}
+                onClick={() => handleConvClick(conv)}
+                className={`w-full text-left p-4 hover:bg-secondary-50 transition-colors ${activeConv?.id === conv.id ? 'bg-primary-50 border-l-2 border-primary' : ''}`}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -77,6 +186,8 @@ export default function SecureChat() {
 
         {/* Chat Window */}
         <div className="flex-1 bg-surface rounded-3xl border border-secondary-100 shadow-md flex flex-col overflow-hidden">
+          {activeConv ? (
+          <>
           {/* Chat Header */}
           <div className="px-5 py-4 border-b border-secondary-100 flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-bold text-sm">
@@ -105,7 +216,9 @@ export default function SecureChat() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {msgs.map(msg => (
+            {msgs.length === 0 ? (
+                <div className="text-center text-sm text-secondary-400 mt-10">Say hello! Your message will be encrypted.</div>
+            ) : msgs.map(msg => (
               <div key={msg.id} className={`flex ${msg.from === 'me' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-xs lg:max-w-sm px-4 py-2.5 rounded-2xl text-sm ${
                   msg.from === 'me'
@@ -144,6 +257,12 @@ export default function SecureChat() {
               <Send className="w-4 h-4" />
             </motion.button>
           </div>
+          </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-secondary-400">
+                Select a conversation to start chatting
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>

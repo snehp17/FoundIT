@@ -19,6 +19,7 @@ export default function SelectUniversity() {
   const [query, setQuery] = useState('')
   const [universities, setUniversities] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -26,8 +27,10 @@ export default function SelectUniversity() {
       try {
         const res = await api.get('/auth/universities')
         setUniversities(res.data)
+        setError(null)
       } catch (err) {
         console.error('Failed to fetch universities', err)
+        setError('Failed to connect to the backend server. Please ensure the backend is running.')
       } finally {
         setLoading(false)
       }
@@ -147,7 +150,15 @@ export default function SelectUniversity() {
           </div>
         )}
 
-        {!loading && filtered.length === 0 && (
+        {!loading && error && (
+          <div className="text-center py-20">
+            <div className="bg-red-50 text-red-600 p-4 rounded-xl inline-block mb-4">
+              {error}
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && filtered.length === 0 && (
           <div className="text-center py-20">
             <Building2 className="w-16 h-16 text-secondary-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-secondary-900 mb-2">No universities found</h3>

@@ -1,7 +1,10 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import AppLayout from '../components/AppLayout'
 import { Brain, CheckCircle2, XCircle, MapPin, Clock, Tag, ArrowRight, ShieldCheck } from 'lucide-react'
+import api from '../api'
 
 const matchData = {
   lost: {
@@ -33,6 +36,68 @@ const matchData = {
 }
 
 export default function SmartMatch() {
+  const [searchParams] = useSearchParams()
+  const foundId = searchParams.get('foundId')
+  const lostId = searchParams.get('lostId')
+
+  const [loading, setLoading] = useState(true)
+  const [matchData, setMatchData] = useState(null)
+
+  useEffect(() => {
+    if (!foundId || !lostId) {
+      setLoading(false)
+      return
+    }
+
+    const fetchMatches = async () => {
+      try {
+        const foundRes = await api.get(`/items/${foundId}`)
+        const lostRes = await api.get(`/items/${lostId}`)
+        
+        const foundItem = foundRes.data
+        const lostItem = lostRes.data
+
+        setMatchData({
+          lost: {
+            title: lostItem.title,
+            category: lostItem.category,
+            location: lostItem.location,
+            date: new Date(lostItem.date).toLocaleDateString(),
+            color: 'N/A', // Update if color is added to DB
+            desc: lostItem.description,
+            user_id: lostItem.user_id,
+            id: lostItem.id
+          },
+          found: {
+            title: foundItem.title,
+            category: foundItem.category,
+            location: foundItem.location,
+            date: new Date(foundItem.date).toLocaleDateString(),
+            color: 'N/A', // Update if color is added to DB
+            desc: foundItem.description,
+            user_id: foundItem.user_id,
+            id: foundItem.id
+          },
+          confidence: 85, // Mock confidence score for now
+          attributes: [
+            { name: 'Category', match: lostItem.category === foundItem.category, lost: lostItem.category, found: foundItem.category },
+            { name: 'Location', match: lostItem.location === foundItem.location, lost: lostItem.location, found: foundItem.location },
+            { name: 'Date', match: lostItem.date === foundItem.date, lost: new Date(lostItem.date).toLocaleDateString(), found: new Date(foundItem.date).toLocaleDateString() },
+          ]
+        })
+      } catch (err) {
+        console.error("Error fetching match data:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMatches()
+  }, [foundId, lostId])
+
+  if (loading) return <AppLayout title="Smart AI Match"><div className="p-8 text-center">Loading match data...</div></AppLayout>
+  if (!matchData) return <AppLayout title="Smart AI Match"><div className="p-8 text-center text-error">Match data not found.</div></AppLayout>
+
   return (
     <AppLayout title="Smart AI Match">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -141,9 +206,9 @@ export default function SmartMatch() {
             <XCircle className="w-4 h-4" />
             Reject Match
           </button>
-          <Link to="/verify/1" className="btn-primary gap-2">
+          <Link to={`/chat?peerId=${matchData.found.user_id}&itemId=${matchData.found.id}`} className="btn-primary gap-2">
             <ShieldCheck className="w-4 h-4" />
-            Accept & Verify Ownership
+            Initiate Secure Chat
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
