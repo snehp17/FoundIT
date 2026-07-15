@@ -169,9 +169,9 @@ export default function ItemDetail() {
                   <ShieldCheck className="w-4 h-4" />
                   Claim This Item
                 </Link>
-                <Link to="/chat" className="btn-secondary w-full justify-center">
+                <Link to={`/chat?peerId=${item.user_id}&itemId=${item.id}&peerName=${encodeURIComponent(item.profiles?.name || 'User')}&itemTitle=${encodeURIComponent(item.title)}`} className="btn-secondary w-full justify-center">
                   <MessageSquare className="w-4 h-4" />
-                  Contact Finder
+                  Contact {item.type === 'LOST' ? 'Finder' : 'Owner'}
                 </Link>
                 <Link to="/matches" className="btn-ghost w-full justify-center text-sm">
                   <Brain className="w-4 h-4" />

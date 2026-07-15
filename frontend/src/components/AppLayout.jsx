@@ -38,9 +38,12 @@ export default function AppLayout({ children, title }) {
         // ignore for now
       }
     }
+    let intervalId;
     if (user) {
       fetchUnread()
+      intervalId = setInterval(fetchUnread, 5000)
     }
+    return () => clearInterval(intervalId)
   }, [user])
 
   const initial = user?.name ? user.name.substring(0, 2).toUpperCase() : 'U'

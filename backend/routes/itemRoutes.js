@@ -3,6 +3,8 @@ const router = express.Router();
 const multer = require("multer");
 const supabase = require("../config/supabase");
 const { authenticate } = require("../middleware/auth");
+const { categorizeItem, autoDescribe, generateTextEmbedding, generateImageEmbedding } = require("../services/aiService");
+const path = require('path');
 
 // Configure Multer for image uploads
 const storage = multer.diskStorage({
@@ -21,13 +23,38 @@ router.post("/report", authenticate, upload.single("image"), async (req, res) =>
     const { type, title, description, category, location, date, time } = req.body;
     const imageFilename = req.file ? req.file.filename : null;
 
-    const { data: item, error } = await supabase
-      .from('items')
-      .insert([{
+    let finalCategory = category;
+    let expandedDescription = description;
+    
+    // AI Integration: Categorize and Expand Description
+    try {
+      const aiCategory = await categorizeItem(title || 'Untitled', description || '');
+      if (aiCategory) finalCategory = aiCategory;
+      
+      const aiDesc = await autoDescribe(title || 'Untitled', description || '');
+      if (aiDesc) expandedDescription = aiDesc;
+    } catch (aiErr) {
+      console.log("AI Text features failed, continuing...", aiErr.message);
+    }
+
+    // AI Integration: Generate Embeddings
+    let textEmbedding = null;
+    let imageEmbedding = null;
+    try {
+      textEmbedding = await generateTextEmbedding(expandedDescription || title);
+      if (imageFilename) {
+         const imagePath = path.join(__dirname, '..', 'uploads', imageFilename);
+         imageEmbedding = await generateImageEmbedding(imagePath);
+      }
+    } catch (embErr) {
+      console.log("AI Embedding generation failed, continuing...", embErr.message);
+    }
+
+    const payload = {
         type: type || 'LOST',
         title: title || 'Untitled',
-        description,
-        category,
+        description: expandedDescription,
+        category: finalCategory,
         location,
         date: date || new Date().toISOString().split('T')[0],
         time: time,
@@ -35,21 +62,72 @@ router.post("/report", authenticate, upload.single("image"), async (req, res) =>
         user_id: req.user.id,
         university_id: req.user.university_id,
         status: 'Active'
-      }])
+    };
+
+    const { data: item, error } = await supabase
+      .from('items')
+      .insert([payload])
       .select()
       .single();
 
     if (error) throw error;
 
+    if (textEmbedding || imageEmbedding) {
+      const { error: embError } = await supabase
+        .from('item_embeddings')
+        .insert([{
+          item_id: item.id,
+          text_embedding: textEmbedding || null,
+          image_embedding: imageEmbedding || null
+        }]);
+      if (embError) console.error("Error inserting embeddings:", embError);
+    }
+
     // --- Smart Match Logic ---
     if (item.type === 'FOUND' && item.category) {
-      const { data: lostItems, error: lostItemsError } = await supabase
-        .from('items')
-        .select('id, user_id, title')
-        .eq('type', 'LOST')
-        .eq('category', item.category)
-        .eq('university_id', item.university_id)
-        .eq('status', 'Active');
+      // Vector Search: Use the text embedding to find semantic matches
+      let lostItems = [];
+      let lostItemsError = null;
+
+      if (imageEmbedding) {
+        const { data: imgMatches, error: imgErr } = await supabase
+          .rpc('match_items_image', {
+            query_embedding: imageEmbedding,
+            match_threshold: 0.7,
+            match_count: 5,
+            p_type: 'LOST',
+            p_university_id: item.university_id
+          });
+        lostItems = imgMatches || [];
+        lostItemsError = imgErr;
+      }
+      
+      if ((!lostItems || lostItems.length === 0) && textEmbedding) {
+        // Use the pgvector RPC function if embeddings exist
+        const { data: vectorMatches, error: vectorErr } = await supabase
+          .rpc('match_items_text', {
+            query_embedding: textEmbedding,
+            match_threshold: 0.7, // 70% similarity threshold
+            match_count: 5,
+            p_type: 'LOST',
+            p_university_id: item.university_id
+          });
+        
+        lostItems = vectorMatches || [];
+        lostItemsError = vectorErr;
+      } else {
+        // Fallback to exact category match if pgvector or embeddings failed
+        const { data: exactMatches, error: exactErr } = await supabase
+          .from('items')
+          .select('id, user_id, title')
+          .eq('type', 'LOST')
+          .eq('category', item.category)
+          .eq('university_id', item.university_id)
+          .eq('status', 'Active');
+        
+        lostItems = exactMatches || [];
+        lostItemsError = exactErr;
+      }
 
       if (!lostItemsError && lostItems && lostItems.length > 0) {
         const notifications = lostItems.map(lostItem => ({

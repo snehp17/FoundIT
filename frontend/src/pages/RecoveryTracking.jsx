@@ -3,13 +3,14 @@ import AppLayout from '../components/AppLayout'
 import { CheckCircle2, Circle, QrCode, Download, Share2, MapPin, Clock } from 'lucide-react'
 
 const stages = [
-  { label: 'Item Reported', time: 'Jun 19, 2:35 PM', done: true, desc: 'Lost item report submitted successfully' },
-  { label: 'AI Categorization', time: 'Jun 19, 2:36 PM', done: true, desc: 'Item categorized as Electronics - Laptop' },
-  { label: 'AI Matching Started', time: 'Jun 19, 2:36 PM', done: true, desc: 'Searching 347 active found item reports' },
-  { label: 'Match Found', time: 'Jun 19, 4:52 PM', done: true, desc: '87% confidence match found — Cafeteria Area' },
-  { label: 'Ownership Verified', time: 'Jun 19, 6:15 PM', done: true, desc: 'Claim approved by campus moderator' },
+  { label: 'User Reports Lost Item', time: 'Jun 19, 2:35 PM', done: true, desc: 'Lost item report submitted successfully' },
+  { label: 'Item Verified', time: 'Jun 19, 2:35 PM', done: true, desc: 'Report verified by system' },
+  { label: 'AI Categorization', time: 'Jun 19, 2:36 PM', done: true, desc: 'Item categorized via GPT-4' },
+  { label: 'AI Matching Started', time: 'Jun 19, 2:36 PM', done: true, desc: 'Scanning for vector embeddings matches' },
+  { label: 'Potential Match Found', time: 'Jun 19, 4:52 PM', done: true, desc: 'High confidence match found' },
+  { label: 'Ownership Verification', time: 'Jun 19, 6:15 PM', done: true, desc: 'Claim approved by campus moderator' },
   { label: 'Secure Handover', time: 'Jun 20, 10:00 AM', done: false, desc: 'Visit campus lost & found office with QR code', current: true },
-  { label: 'Recovery Complete', time: '—', done: false, desc: 'Item officially returned to owner' },
+  { label: 'Recovered', time: '—', done: false, desc: 'Item officially returned to owner' },
 ]
 
 export default function RecoveryTracking() {

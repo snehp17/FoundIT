@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 // Get messages for the current user
 router.get('/', authenticate, async (req, res) => {
   try {
+    console.log('GET /messages called by user ID:', req.user.id);
     const { data: messages, error } = await supabase
       .from('messages')
       .select(`*, sender:profiles!sender_id(name), receiver:profiles!receiver_id(name), item:items(title, status)`)
@@ -42,11 +43,43 @@ router.post('/', authenticate, async (req, res) => {
 
     if (error) throw error;
 
+    // Create a notification for the receiver
+    const { error: notifError } = await supabase
+      .from('notifications')
+      .insert([{
+        user_id: receiver_id,
+        title: 'New Secure Message',
+        message: `You have a new message from ${req.user.name || 'someone'}.`
+      }]);
+    
+    if (notifError) console.error("Error creating message notification:", notifError);
+
     res.json({ message: 'Message sent successfully', data: message });
   } catch (error) {
     console.error('Error sending message:', error);
     res.status(500).json({ message: 'Server error' });
   }
+});
+
+const multer = require("multer");
+const path = require("path");
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+const upload = multer({ storage: storage });
+
+// Upload an attachment
+router.post('/upload', authenticate, upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+  res.json({ url: `/uploads/${req.file.filename}` });
 });
 
 module.exports = router;

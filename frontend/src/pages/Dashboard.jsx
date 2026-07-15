@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
@@ -7,14 +7,10 @@ import {
   ArrowRight, CheckCircle2, AlertCircle, Eye, MapPin,
   Bell, BarChart2, ChevronRight
 } from 'lucide-react'
+import api from '../api'
 
-const recentItems = [
-  { id: 1, type: 'LOST', title: 'MacBook Pro 14"', category: 'Electronics', location: 'Main Library', time: '2h ago', status: 'Matching', statusColor: 'badge-warning', match: '87%' },
-  { id: 2, type: 'FOUND', title: 'Blue Hydroflask', category: 'Personal Items', location: 'Cafeteria', time: '4h ago', status: 'Pending Claim', statusColor: 'badge-primary', match: null },
-  { id: 3, type: 'LOST', title: 'Student ID Card', category: 'Documents', location: 'Bus Stop', time: '1d ago', status: 'Match Found!', statusColor: 'badge-success', match: '94%' },
-  { id: 4, type: 'FOUND', title: 'AirPods Pro (Left)', category: 'Electronics', location: 'Lecture Hall B', time: '6h ago', status: 'Verified', statusColor: 'badge-success', match: null },
-  { id: 5, type: 'LOST', title: 'Prescription Glasses', category: 'Accessories', location: 'Sports Complex', time: '2d ago', status: 'Active', statusColor: 'badge-secondary', match: '62%' },
-]
+// Removing hardcoded recentItems
+// const recentItems = [...]
 
 const notifications = [
   { icon: Brain, text: '94% match found for your Student ID Card report', time: '5m ago', type: 'match', color: 'text-primary bg-primary/10' },
@@ -29,6 +25,24 @@ export default function Dashboard() {
     { icon: Clock, label: 'Pending Claims', value: '1', change: 'Awaiting verification', color: 'text-warning', bg: 'bg-warning/10', trend: 'neutral' },
     { icon: CheckCircle2, label: 'Items Recovered', value: '4', change: 'Total lifetime', color: 'text-accent', bg: 'bg-accent/10', trend: 'up' },
   ]
+
+  const [recentItems, setRecentItems] = useState([])
+  const [loadingItems, setLoadingItems] = useState(true)
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const res = await api.get('/items')
+        const sorted = res.data.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5)
+        setRecentItems(sorted)
+      } catch (error) {
+        console.error('Error fetching recent items:', error)
+      } finally {
+        setLoadingItems(false)
+      }
+    }
+    fetchItems()
+  }, [])
 
   return (
     <AppLayout title="Campus Dashboard">
@@ -101,7 +115,11 @@ export default function Dashboard() {
                 </Link>
               </div>
               <div className="divide-y divide-secondary-100">
-                {recentItems.map((item) => (
+                {loadingItems ? (
+                  <div className="px-6 py-8 text-center text-secondary-500">Loading recent reports...</div>
+                ) : recentItems.length === 0 ? (
+                  <div className="px-6 py-8 text-center text-secondary-500">No recent reports found.</div>
+                ) : recentItems.map((item) => (
                   <Link
                     key={item.id}
                     to={`/items/${item.id}`}
@@ -121,14 +139,11 @@ export default function Dashboard() {
                         <MapPin className="w-3 h-3" />
                         <span>{item.location}</span>
                         <span>·</span>
-                        <span>{item.time}</span>
+                        <span>{new Date(item.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {item.match && (
-                        <span className="text-xs font-bold text-primary">{item.match}</span>
-                      )}
-                      <span className={`badge text-xs ${item.statusColor}`}>{item.status}</span>
+                      {item.status && <span className={`badge text-xs badge-secondary`}>{item.status}</span>}
                     </div>
                   </Link>
                 ))}

@@ -114,6 +114,7 @@ router.post("/login", async (req, res) => {
     res.json({
       message: "Login Successful",
       token: token,
+      refresh_token: data.session.refresh_token,
       id: data.user.id,
       role: profile.role,
       name: profile.name,
@@ -123,6 +124,30 @@ router.post("/login", async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Server error during login" });
+  }
+});
+
+// TOKEN REFRESH
+router.post("/refresh", async (req, res) => {
+  try {
+    const { refresh_token } = req.body;
+    if (!refresh_token) {
+      return res.status(400).json({ message: "refresh_token is required" });
+    }
+
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+
+    if (error || !data.session) {
+      return res.status(401).json({ message: "Session expired. Please log in again." });
+    }
+
+    res.json({
+      token: data.session.access_token,
+      refresh_token: data.session.refresh_token
+    });
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    res.status(500).json({ message: "Server error during token refresh" });
   }
 });
 

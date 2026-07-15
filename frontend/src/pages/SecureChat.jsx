@@ -10,13 +10,23 @@ export default function SecureChat() {
   const [searchParams] = useSearchParams()
   const initialPeerId = searchParams.get('peerId')
   const initialItemId = searchParams.get('itemId')
+  const initialPeerName = searchParams.get('peerName') || 'Match User'
+  const initialItemTitle = searchParams.get('itemTitle') || 'Matched Item'
 
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [conversations, setConversations] = useState([])
   const [activeConv, setActiveConv] = useState(null)
   const [input, setInput] = useState('')
   const [msgs, setMsgs] = useState([])
+  const [menuOpen, setMenuOpen] = useState(false)
   const bottomRef = useRef()
+  const fileInputRef = useRef()
+  const activeConvRef = useRef(activeConv)
+
+  useEffect(() => {
+    activeConvRef.current = activeConv
+  }, [activeConv])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -27,44 +37,63 @@ export default function SecureChat() {
       try {
         const res = await api.get('/messages')
         const allMessages = res.data
+      
+      const convMap = new Map()
+      
+      allMessages.forEach(m => {
+        const isSender = m.sender_id === currentUser.id
+        const peerId = isSender ? m.receiver_id : m.sender_id
+        const peerObj = isSender ? m.receiver : m.sender
         
-        const convMap = new Map()
+        let peerName = 'Unknown User'
+        if (peerObj) {
+          if (Array.isArray(peerObj) && peerObj.length > 0) {
+            peerName = peerObj[0].name || peerName
+          } else if (peerObj.name) {
+            peerName = peerObj.name
+          }
+        }
         
-        allMessages.forEach(m => {
-          const isSender = m.sender_id === currentUser.id
-          const peerId = isSender ? m.receiver_id : m.sender_id
-          const peerName = isSender ? m.receiver?.name : m.sender?.name
-          const key = `${peerId}_${m.item_id}`
-          
-          if (!convMap.has(key)) {
-            convMap.set(key, {
-              id: key,
-              peerId,
-              itemId: m.item_id,
-              name: peerName || 'User',
-              item: m.item?.title || 'Item',
-              msgs: [],
-              lastMsg: '',
-              time: '',
-              unread: 0
-            })
+        const key = `${peerId}_${m.item_id}`
+        
+        if (!convMap.has(key)) {
+          convMap.set(key, {
+            id: key,
+            peerId,
+            itemId: m.item_id,
+            name: peerName,
+            item: m.item?.title || 'Item',
+            msgs: [],
+            lastMsg: '',
+            time: '',
+            unread: 0
+          })
+        } else {
+          // If the conversation already exists, ensure the name is updated correctly
+          const existingConv = convMap.get(key)
+          if (existingConv.name === 'Match User' || existingConv.name === 'Unknown User' || existingConv.name === 'User') {
+             if (peerName !== 'Unknown User') {
+                 existingConv.name = peerName
+             }
           }
-          
-          const conv = convMap.get(key)
-          const formattedMsg = {
-            id: m.id,
-            from: isSender ? 'me' : 'them',
-            text: m.text,
-            time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-          
-          conv.msgs.push(formattedMsg)
-          conv.lastMsg = m.text
-          conv.time = formattedMsg.time
-        })
+        }
+        
+        const conv = convMap.get(key)
+        const formattedMsg = {
+          id: m.id,
+          from: isSender ? 'me' : 'them',
+          text: m.text,
+          time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        
+        conv.msgs.push(formattedMsg)
+        conv.lastMsg = m.text
+        conv.time = formattedMsg.time
+      })
 
-        let convList = Array.from(convMap.values())
-        
+      let convList = Array.from(convMap.values())
+      
+
         if (initialPeerId && initialItemId) {
           const initialKey = `${initialPeerId}_${initialItemId}`
           if (!convMap.has(initialKey)) {
@@ -72,8 +101,8 @@ export default function SecureChat() {
                 id: initialKey,
                 peerId: initialPeerId,
                 itemId: initialItemId,
-                name: 'Match User',
-                item: 'Matched Item',
+                name: initialPeerName,
+                item: initialItemTitle,
                 msgs: [],
                 lastMsg: 'Start a conversation...',
                 time: 'Now',
@@ -84,26 +113,36 @@ export default function SecureChat() {
         
         setConversations(convList)
         
-        if (initialPeerId && initialItemId) {
-          const active = convList.find(c => c.id === `${initialPeerId}_${initialItemId}`)
-          if (active) {
-            setActiveConv(active)
-            setMsgs(active.msgs)
-          }
+        const currentActive = activeConvRef.current
+        let nextActive = null
+
+        if (initialPeerId && initialItemId && !currentActive) {
+          nextActive = convList.find(c => c.id === `${initialPeerId}_${initialItemId}`)
+        } else if (currentActive) {
+          nextActive = convList.find(c => c.id === currentActive.id)
         } else if (convList.length > 0) {
-          setActiveConv(convList[0])
-          setMsgs(convList[0].msgs)
+          nextActive = convList[0]
         }
+        
+        if (nextActive) {
+          setActiveConv(nextActive)
+          setMsgs(nextActive.msgs)
+        }
+
       } catch (err) {
         console.error("Error fetching messages:", err)
+        setError('Could not load conversations. Your session may have expired — please log in again.')
       } finally {
         setLoading(false)
       }
     }
     
+    let intervalId;
     if (currentUser.id) {
         fetchMessages()
+        intervalId = setInterval(fetchMessages, 3000)
     }
+    return () => clearInterval(intervalId)
   }, [initialPeerId, initialItemId, currentUser.id])
 
   const handleConvClick = (conv) => {
@@ -113,11 +152,14 @@ export default function SecureChat() {
 
   const sendMessage = async () => {
     if (!input.trim() || !activeConv) return
+    const textToSend = input
+    setInput('')
+    
     try {
       const res = await api.post('/messages', {
         receiver_id: activeConv.peerId,
         item_id: activeConv.itemId,
-        text: input
+        text: textToSend
       })
       
       const newMsgData = res.data.data
@@ -132,9 +174,45 @@ export default function SecureChat() {
       setConversations(prev => prev.map(c => 
         c.id === activeConv.id ? { ...c, msgs: [...c.msgs, newMsg], lastMsg: newMsg.text, time: newMsg.time } : c
       ))
-      setInput('')
-    } catch(err) {
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+    } catch (err) {
       console.error("Error sending message:", err)
+    }
+  }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file || !activeConv) return
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const res = await api.post('/messages/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      const fileUrl = res.data.url
+      // send message with attachment
+      const msgRes = await api.post('/messages', {
+        receiver_id: activeConv.peerId,
+        item_id: activeConv.itemId,
+        text: `[ATTACHMENT]:${fileUrl}`
+      })
+      
+      const newMsgData = msgRes.data.data
+      const newMsg = {
+        id: newMsgData.id,
+        from: 'me',
+        text: newMsgData.text,
+        time: new Date(newMsgData.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+      
+      setMsgs(prev => [...prev, newMsg])
+      setConversations(prev => prev.map(c => 
+        c.id === activeConv.id ? { ...c, msgs: [...c.msgs, newMsg], lastMsg: 'Sent an attachment', time: newMsg.time } : c
+      ))
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+    } catch (err) {
+      console.error("Error uploading file:", err)
+      alert("Failed to upload file")
     }
   }
 
@@ -153,8 +231,10 @@ export default function SecureChat() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-secondary-100">
-            {conversations.length === 0 ? (
-                <div className="p-4 text-center text-sm text-secondary-400">No conversations yet</div>
+            {error ? (
+              <div className="p-4 text-center text-sm text-red-500">{error}</div>
+            ) : conversations.length === 0 ? (
+              <div className="p-4 text-center text-sm text-secondary-400">No conversations yet</div>
             ) : conversations.map(conv => (
               <button
                 key={conv.id}
@@ -202,9 +282,17 @@ export default function SecureChat() {
                 <Shield className="w-3 h-3" />
                 Encrypted
               </div>
-              <button className="p-1.5 rounded-lg hover:bg-secondary-100 text-secondary-500">
-                <MoreVertical className="w-4 h-4" />
-              </button>
+              <div className="relative">
+                <button onClick={() => setMenuOpen(!menuOpen)} className="p-1.5 rounded-lg hover:bg-secondary-100 text-secondary-500">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-36 bg-white rounded-lg shadow-lg border border-secondary-100 py-1 z-50">
+                    <button onClick={() => { alert('Block user action will be implemented in future version.'); setMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50">Block</button>
+                    <button onClick={() => { setMsgs([]); setMenuOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">Clear Chat</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -225,7 +313,19 @@ export default function SecureChat() {
                     ? 'bg-primary text-white rounded-br-sm'
                     : 'bg-secondary-100 text-secondary-900 rounded-bl-sm'
                 }`}>
-                  <p>{msg.text}</p>
+                  {msg.text?.startsWith('[ATTACHMENT]:') ? (
+                    <div className="mt-1">
+                      {msg.text.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                        <img src={`http://localhost:5000${msg.text.split('[ATTACHMENT]:')[1]}`} alt="attachment" className="max-w-xs rounded-lg" />
+                      ) : (
+                        <a href={`http://localhost:5000${msg.text.split('[ATTACHMENT]:')[1]}`} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                          View Attachment
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <p>{msg.text}</p>
+                  )}
                   <div className={`flex items-center gap-1 mt-1 text-xs ${msg.from === 'me' ? 'text-blue-200 justify-end' : 'text-secondary-400'}`}>
                     <span>{msg.time}</span>
                     {msg.from === 'me' && <CheckCheck className="w-3.5 h-3.5" />}
@@ -238,7 +338,8 @@ export default function SecureChat() {
 
           {/* Input */}
           <div className="px-4 py-3 border-t border-secondary-100 flex items-center gap-3">
-            <button className="p-2 rounded-xl hover:bg-secondary-100 text-secondary-400 hover:text-secondary-600 transition-colors">
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-xl hover:bg-secondary-100 text-secondary-400 hover:text-secondary-600 transition-colors">
               <Paperclip className="w-4 h-4" />
             </button>
             <input
