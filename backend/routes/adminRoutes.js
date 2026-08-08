@@ -289,7 +289,7 @@ router.get('/analytics', authenticate, authorize('super_admin', 'university_admi
       totalReports,
       recovered,
       recoveryRate: rate,
-      activeUsers: 4821, // Hardcoded for now since no claims/active users metric defined
+      activeUsers: 11, // Changed active users count to 11
       categories: [
         { label: 'Electronics', count: items.filter(i=>i.category==='Electronics').length || 128, pct: 37, color: 'bg-primary' },
         { label: 'Documents', count: items.filter(i=>i.category==='Documents').length || 89, pct: 26, color: 'bg-violet-500' },

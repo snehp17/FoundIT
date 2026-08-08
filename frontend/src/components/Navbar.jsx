@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Bell, Menu, X, ChevronDown, Compass } from 'lucide-react'
 
 const navLinks = [
-  { label: 'Features', href: '#features' },
-  { label: 'How it Works', href: '#how-it-works' },
+  { label: 'Features', href: '/#features', isRoute: true },
+  { label: 'How it Works', href: '/#how-it-works', isRoute: true },
+  { label: 'About Us', href: '/#about', isRoute: true },
   { label: 'Partner University', href: '/partner', isRoute: true },
 ]
 

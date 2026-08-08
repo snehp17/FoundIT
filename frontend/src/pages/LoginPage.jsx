@@ -127,7 +127,7 @@ export default function LoginPage() {
             </p>
             <div className="space-y-4">
               {[
-                '78% average campus recovery rate',
+                'High recovery rate with smart AI matching',
                 'Ownership verified before every handover',
                 'Your data never shared without consent',
               ].map((feat) => (
@@ -143,9 +143,9 @@ export default function LoginPage() {
         {/* Stats */}
         <div className="relative z-10 grid grid-cols-3 gap-4">
           {[
-            { value: '12K+', label: 'Students' },
-            { value: '20', label: 'Campuses' },
-            { value: '78%', label: 'Recovery Rate' },
+            { value: '50+', label: 'Students' },
+            { value: '3', label: 'Campuses' },
+            { value: '60%', label: 'Recovery Rate' },
           ].map((stat) => (
             <div key={stat.label} className="bg-surface/10 rounded-2xl p-4 backdrop-blur">
               <div className="text-2xl font-bold text-white">{stat.value}</div>

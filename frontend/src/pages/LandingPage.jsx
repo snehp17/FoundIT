@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { motion, useInView, useAnimation, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
@@ -8,7 +8,7 @@ import {
   BarChart2, QrCode, TrendingUp, ArrowRight, CheckCircle2,
   XCircle, Users, Building2, Star, ChevronDown, Zap,
   MapPin, Clock, Package, ChevronRight, Play,
-  Smartphone, Globe, Award, Lock
+  Smartphone, Globe, Award, Lock, FileText, Send, Mail, Briefcase
 } from 'lucide-react'
 
 // Animated Counter
@@ -165,6 +165,20 @@ function FAQItem({ q, a }) {
 }
 
 export default function LandingPage() {
+  const location = useLocation()
+
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace('#', '')
+      const element = document.getElementById(id)
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 100)
+      }
+    }
+  }, [location])
+
   return (
     <div className="min-h-screen bg-surface overflow-x-hidden">
       <Navbar />
@@ -620,6 +634,308 @@ export default function LandingPage() {
               </div>
             </div>
           </motion.div>
+        </div>
+      </Section>
+
+      {/* ─── ABOUT US ─── */}
+      <Section className="section-padding bg-surface" id="about">
+        <div className="section-container">
+          <div className="text-center mb-16">
+            <div className="inline-block badge-primary mb-4">About FoundIT</div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+              Building the World's Smartest{' '}
+              <span className="text-gradient">Campus Recovery Network</span>
+            </h2>
+            <p className="text-secondary-500 text-lg max-w-3xl mx-auto leading-relaxed">
+              FoundIT was created to solve a problem every student faces: losing valuable belongings on a busy campus with no centralized way to recover them. By combining cutting-edge AI similarity matching, automated verification, and secure communication, we empower university communities to reconnect people with what matters most.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="glass-card p-8 text-center border border-secondary-100">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-5">
+                <Brain className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-bold text-secondary-900 mb-2">AI Innovation</h3>
+              <p className="text-sm text-secondary-500 leading-relaxed">
+                Utilizing vector embeddings and image recognition to match lost items with reported found items instantly.
+              </p>
+            </div>
+            <div className="glass-card p-8 text-center border border-secondary-100">
+              <div className="w-14 h-14 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mx-auto mb-5">
+                <ShieldCheck className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-bold text-secondary-900 mb-2">Trust & Safety</h3>
+              <p className="text-sm text-secondary-500 leading-relaxed">
+                Verification questions and masked messaging ensure items are only returned to verified owners.
+              </p>
+            </div>
+            <div className="glass-card p-8 text-center border border-secondary-100">
+              <div className="w-14 h-14 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center mx-auto mb-5">
+                <Building2 className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-bold text-secondary-900 mb-2">Campus Ecosystem</h3>
+              <p className="text-sm text-secondary-500 leading-relaxed">
+                Seamlessly integrated with university admin dashboards, security offices, and student bodies.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* ─── BLOG ─── */}
+      <Section className="section-padding bg-secondary-50" id="blog">
+        <div className="section-container">
+          <div className="text-center mb-16">
+            <div className="inline-block badge-primary mb-4">Latest Insights</div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+              FoundIT Blog & <span className="text-gradient">Updates</span>
+            </h2>
+            <p className="text-secondary-500 text-lg max-w-2xl mx-auto">
+              Stay updated on campus safety best practices, AI technology updates, and university partnerships.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                tag: 'Technology',
+                title: 'How Multi-Modal AI Boosts Item Recovery Rates by 78%',
+                date: 'May 14, 2025',
+                desc: 'Deep dive into vector embeddings, text similarity, and image recognition algorithms powering FoundIT 2.0.'
+              },
+              {
+                tag: 'University News',
+                tagColor: 'badge-success',
+                title: 'Parul & Silver Oak University Partner with FoundIT',
+                date: 'April 28, 2025',
+                desc: 'Over 50,000 students across partner campuses gain access to central automated recovery portals.'
+              },
+              {
+                tag: 'Campus Guide',
+                tagColor: 'badge-warning',
+                title: '5 Crucial Steps to Take Right After Losing Electronics',
+                date: 'April 10, 2025',
+                desc: 'How to lock accounts, report to campus security, and upload exact distinguishing traits to FoundIT.'
+              }
+            ].map((post, i) => (
+              <div key={i} className="glass-card p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className={`badge text-xs ${post.tagColor || 'badge-primary'}`}>{post.tag}</span>
+                    <span className="text-xs text-secondary-400">{post.date}</span>
+                  </div>
+                  <h3 className="font-bold text-secondary-900 text-lg mb-2 hover:text-primary transition-colors cursor-pointer">{post.title}</h3>
+                  <p className="text-sm text-secondary-500 leading-relaxed mb-6">{post.desc}</p>
+                </div>
+                <button onClick={() => alert(`Reading article: "${post.title}"`)} className="text-sm font-semibold text-primary flex items-center gap-1.5 hover:gap-2 transition-all">
+                  Read Full Post <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ─── CAREERS ─── */}
+      <Section className="section-padding bg-surface" id="careers">
+        <div className="section-container">
+          <div className="text-center mb-16">
+            <div className="inline-block badge-primary mb-4">We Are Hiring</div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+              Join Our Mission at <span className="text-gradient">FoundIT</span>
+            </h2>
+            <p className="text-secondary-500 text-lg max-w-2xl mx-auto">
+              Help us expand to campuses nationwide and engineer next-gen recovery tools.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {[
+              { role: 'Student Campus Ambassador', type: 'Part-Time / Campus', location: 'On Campus', desc: 'Lead student outreach, organize recovery drives, and represent FoundIT at your university.' },
+              { role: 'Frontend Engineer (React)', type: 'Full-Time / Hybrid', location: 'Remote / Hybrid', desc: 'Build responsive, sleek user interfaces and real-time interactive components.' },
+              { role: 'AI & Data Search Specialist', type: 'Full-Time / Hybrid', location: 'Remote', desc: 'Improve multi-modal image & text similarity models for instant item pairing.' },
+            ].map((job, i) => (
+              <div key={i} className="glass-card p-6 border border-secondary-100 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="badge text-xs bg-primary/10 text-primary">{job.type}</span>
+                    <span className="text-xs text-secondary-400">{job.location}</span>
+                  </div>
+                  <h3 className="font-bold text-secondary-900 text-lg mb-2">{job.role}</h3>
+                  <p className="text-sm text-secondary-500 leading-relaxed mb-6">{job.desc}</p>
+                </div>
+                <button onClick={() => alert(`Application submitted for ${job.role}! Our team will get back to you.`)} className="btn-secondary btn-sm w-full justify-center">
+                  Apply Now
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ─── PRESS ─── */}
+      <Section className="section-padding bg-secondary-50" id="press">
+        <div className="section-container">
+          <div className="text-center mb-16">
+            <div className="inline-block badge-primary mb-4">Press & Media</div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+              FoundIT in the <span className="text-gradient">News</span>
+            </h2>
+            <p className="text-secondary-500 text-lg max-w-2xl mx-auto">
+              Read how FoundIT is modernizing lost-and-found operations across higher education.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="glass-card p-8 border border-secondary-100">
+              <div className="text-xs text-primary font-bold uppercase tracking-wider mb-2">EdTech Weekly · Feature</div>
+              <h3 className="text-xl font-bold text-secondary-900 mb-3">"How AI-Powered Matching is Eliminating Campus Lost Item Backlogs"</h3>
+              <p className="text-sm text-secondary-500 leading-relaxed mb-6">
+                Universities implementing FoundIT report a 70%+ increase in successful claim resolutions within the first month.
+              </p>
+              <a href="#press" onClick={(e) => { e.preventDefault(); alert("Downloading FoundIT Press Kit..."); }} className="text-sm font-semibold text-primary inline-flex items-center gap-1">Download Press Kit (PDF) →</a>
+            </div>
+            <div className="glass-card p-8 border border-secondary-100">
+              <div className="text-xs text-accent font-bold uppercase tracking-wider mb-2">Campus Security Digest</div>
+              <h3 className="text-xl font-bold text-secondary-900 mb-3">"Improving Student Safety with Privacy-First Masked Communication"</h3>
+              <p className="text-sm text-secondary-500 leading-relaxed mb-6">
+                Eliminating public phone number posts on social media drastically reduces harassment and scam attempts on campus.
+              </p>
+              <a href="#press" onClick={(e) => { e.preventDefault(); alert("Opening Official Media Release..."); }} className="text-sm font-semibold text-accent inline-flex items-center gap-1">Read Media Release →</a>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* ─── CONTACT ─── */}
+      <Section className="section-padding bg-surface" id="contact">
+        <div className="section-container max-w-4xl">
+          <div className="text-center mb-12">
+            <div className="inline-block badge-primary mb-4">Contact Us</div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+              Get in Touch with <span className="text-gradient">FoundIT</span>
+            </h2>
+            <p className="text-secondary-500 text-lg max-w-xl mx-auto">
+              Have questions about your campus integration, support, or partnership inquiries? Send us a message!
+            </p>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); alert("Thank you for reaching out! The FoundIT team will respond within 24 hours."); e.target.reset(); }} className="glass-card p-8 border border-secondary-100 space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-secondary-700 mb-1">Your Name</label>
+                <input type="text" required placeholder="Alex Smith" className="input-field w-full" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-secondary-700 mb-1">Email Address</label>
+                <input type="email" required placeholder="alex@university.edu" className="input-field w-full" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-secondary-700 mb-1">University / Subject</label>
+              <input type="text" required placeholder="e.g. Parul University or General Question" className="input-field w-full" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-secondary-700 mb-1">Message</label>
+              <textarea rows="4" required placeholder="How can we help you?" className="input-field w-full"></textarea>
+            </div>
+            <button type="submit" className="btn-primary w-full justify-center">
+              Send Message
+            </button>
+          </form>
+        </div>
+      </Section>
+
+      {/* ─── API DOCS ─── */}
+      <Section className="section-padding bg-secondary-50" id="api-docs">
+        <div className="section-container max-w-4xl">
+          <div className="text-center mb-12">
+            <div className="inline-block badge-primary mb-4">Developer Hub</div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+              FoundIT <span className="text-gradient">API Documentation</span>
+            </h2>
+            <p className="text-secondary-500 text-lg max-w-xl mx-auto">
+              Integrate FoundIT with your campus mobile app, student portal, or security logs using our RESTful endpoints.
+            </p>
+          </div>
+
+          <div className="bg-secondary-900 text-white rounded-3xl p-6 md:p-8 font-mono text-sm shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4 text-xs text-secondary-400">
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
+                <span className="w-3 h-3 rounded-full bg-yellow-500 inline-block" />
+                <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
+                FoundIT v2 REST API Specification
+              </span>
+              <span>Host: http://localhost:5000</span>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <div className="text-accent font-semibold mb-1">GET /api/items</div>
+                <div className="text-secondary-300 text-xs">// Fetch active lost/found listings filtered by university_id</div>
+                <div className="bg-black/50 p-3 rounded-xl text-xs text-green-400 overflow-x-auto">
+                  {`curl -X GET "http://localhost:5000/api/items?type=LOST" \\
+  -H "Authorization: Bearer <JWT_TOKEN>"`}
+                </div>
+              </div>
+              <div>
+                <div className="text-accent font-semibold mb-1">POST /api/items/report</div>
+                <div className="text-secondary-300 text-xs">// Submit new item report with multipart image payload</div>
+              </div>
+              <div>
+                <div className="text-accent font-semibold mb-1">GET /api/admin/analytics</div>
+                <div className="text-secondary-300 text-xs">// Retrieve campus analytics metrics</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* ─── LEGAL & SECURITY ─── */}
+      <Section className="section-padding bg-surface" id="legal">
+        <div className="section-container max-w-5xl">
+          <div className="text-center mb-16">
+            <div className="inline-block badge-primary mb-4">Legal & Compliance</div>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+              Privacy, Security & <span className="text-gradient">Terms</span>
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <div id="privacy" className="glass-card p-6 border border-secondary-100">
+              <h3 className="font-bold text-secondary-900 text-lg mb-2 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-primary" /> Privacy Policy
+              </h3>
+              <p className="text-sm text-secondary-500 leading-relaxed">
+                FoundIT collects only essential account metadata (name, university email, role) necessary to authenticate campus members. Personal phone numbers and emails are never displayed to other users.
+              </p>
+            </div>
+            <div id="terms" className="glass-card p-6 border border-secondary-100">
+              <h3 className="font-bold text-secondary-900 text-lg mb-2 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-accent" /> Terms of Service
+              </h3>
+              <p className="text-sm text-secondary-500 leading-relaxed">
+                By using FoundIT, students agree to submit authentic lost/found reports. Fraudulent claims, fake reports, or misuse of platform messaging will result in immediate account suspension.
+              </p>
+            </div>
+            <div id="cookies" className="glass-card p-6 border border-secondary-100">
+              <h3 className="font-bold text-secondary-900 text-lg mb-2 flex items-center gap-2">
+                <Globe className="w-5 h-5 text-warning" /> Cookie Policy
+              </h3>
+              <p className="text-sm text-secondary-500 leading-relaxed">
+                We use strictly functional local session tokens to keep users authenticated. No third-party tracking cookies or advertising pixels are deployed on FoundIT.
+              </p>
+            </div>
+            <div id="security" className="glass-card p-6 border border-secondary-100">
+              <h3 className="font-bold text-secondary-900 text-lg mb-2 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-purple-600" /> Security Standards
+              </h3>
+              <p className="text-sm text-secondary-500 leading-relaxed">
+                All API communications are encrypted over HTTPS. Database access is governed by Supabase Row Level Security (RLS) policies ensuring users can only view authorized campus data.
+              </p>
+            </div>
+          </div>
         </div>
       </Section>
 

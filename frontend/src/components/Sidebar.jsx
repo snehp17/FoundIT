@@ -22,6 +22,7 @@ const studentItems = [
 const superAdminItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
   { icon: Search, label: 'Browse Items', path: '/items' },
+  { icon: MessageSquare, label: 'Secure Chat', path: '/chat' },
   { icon: Bell, label: 'Notifications', path: '/notifications' },
   { icon: BarChart2, label: 'Analytics', path: '/analytics' },
   { icon: Shield, label: 'Moderator', path: '/moderator' },
@@ -30,6 +31,7 @@ const superAdminItems = [
 const uniAdminItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/uni-admin' },
   { icon: Search, label: 'Browse Items', path: '/items' },
+  { icon: MessageSquare, label: 'Secure Chat', path: '/chat' },
   { icon: Bell, label: 'Notifications', path: '/notifications' },
   { icon: BarChart2, label: 'Analytics', path: '/analytics' },
   { icon: Shield, label: 'Moderator', path: '/moderator' },

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../api'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
 import {
@@ -111,9 +111,17 @@ export default function ItemsListing() {
   const [items, setItems] = useState([])
   const [tab, setTab] = useState('all')
   const [view, setView] = useState('grid')
-  const [query, setQuery] = useState('')
+  const [searchParams] = useSearchParams()
+  const [query, setQuery] = useState(searchParams.get('q') || '')
   const [showFilters, setShowFilters] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q !== null) {
+      setQuery(q)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -146,7 +154,14 @@ export default function ItemsListing() {
   const filtered = items.filter(item => {
     if (tab === 'lost' && item.type !== 'LOST') return false
     if (tab === 'found' && item.type !== 'FOUND') return false
-    if (query && !item.title.toLowerCase().includes(query.toLowerCase())) return false
+    if (query) {
+      const q = query.toLowerCase()
+      const matchTitle = item.title?.toLowerCase().includes(q)
+      const matchCategory = item.category?.toLowerCase().includes(q)
+      const matchLocation = item.location?.toLowerCase().includes(q)
+      const matchDesc = item.desc?.toLowerCase().includes(q)
+      if (!matchTitle && !matchCategory && !matchLocation && !matchDesc) return false
+    }
     return true
   })
 

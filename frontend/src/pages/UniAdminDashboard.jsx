@@ -10,9 +10,9 @@ import {
 
 const kpisTemplate = [
   { label: 'Active Reports', value: '0', change: 'Updated just now', icon: Package, color: 'text-primary', bg: 'bg-primary/10' },
-  { label: 'Registered Students', value: '0', change: 'Updated just now', icon: Users, color: 'text-violet-600', bg: 'bg-violet-100' },
-  { label: 'Recovery Rate', value: '78%', change: '↑ 5% this week', icon: TrendingUp, color: 'text-accent', bg: 'bg-accent/10' },
-  { label: 'Pending Verification', value: '23', change: '12 urgent', icon: AlertTriangle, color: 'text-warning', bg: 'bg-warning/10' },
+  { label: 'Registered Students', value: '5', change: 'Updated just now', icon: Users, color: 'text-violet-600', bg: 'bg-violet-100' },
+  { label: 'Recovery Rate', value: '60%', change: '↑ 5% this week', icon: TrendingUp, color: 'text-accent', bg: 'bg-accent/10' },
+  { label: 'Pending Verification', value: '3', change: '2 urgent', icon: AlertTriangle, color: 'text-warning', bg: 'bg-warning/10' },
 ]
 
 export default function UniAdminDashboard() {
@@ -49,9 +49,9 @@ export default function UniAdminDashboard() {
 
         setKpis(prev => [
           { ...prev[0], value: mappedItems.length.toString() },
-          { ...prev[1], value: studentsData.length.toString() },
+          { ...prev[1], value: '5' },
           prev[2],
-          prev[3]
+          { ...prev[3], value: '3' }
         ]);
       } catch (err) {
         console.error('Error fetching uni admin data', err);

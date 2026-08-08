@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
-import { Bell, Search, User, LogOut } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Bell, Search, User, LogOut, X } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../api'
 
@@ -10,6 +10,23 @@ export default function AppLayout({ children, title }) {
   const [user, setUser] = useState(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '')
+  }, [searchParams])
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      navigate(`/items?q=${encodeURIComponent(searchQuery.trim())}`)
+    } else {
+      navigate('/items')
+    }
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('user')
@@ -66,14 +83,21 @@ export default function AppLayout({ children, title }) {
           </div>
           <div className="flex items-center gap-3">
             {/* Search */}
-            <div className="hidden md:flex items-center gap-2 bg-secondary-50 border border-secondary-100 rounded-xl px-4 py-2 w-64">
-              <Search className="w-4 h-4 text-secondary-400" />
+            <form onSubmit={handleSearchSubmit} className="hidden md:flex items-center gap-2 bg-secondary-50 border border-secondary-100 rounded-xl px-4 py-2 w-64 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+              <Search className="w-4 h-4 text-secondary-400 cursor-pointer" onClick={handleSearchSubmit} />
               <input
                 type="text"
                 placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-transparent text-sm text-secondary-600 placeholder:text-secondary-400 outline-none flex-1"
               />
-            </div>
+              {searchQuery && (
+                <button type="button" onClick={() => { setSearchQuery(''); navigate('/items'); }} className="text-secondary-400 hover:text-secondary-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </form>
 
             {/* Notifications */}
             <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-secondary-100 transition-colors">

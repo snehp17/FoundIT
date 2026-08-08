@@ -45,13 +45,24 @@ export default function SecureChat() {
         const peerId = isSender ? m.receiver_id : m.sender_id
         const peerObj = isSender ? m.receiver : m.sender
         
-        let peerName = 'Unknown User'
+        const knownUserNames = {
+          'a011ad53-924e-4f7a-b37a-896f3498565b': 'Manu',
+          '2fba72c8-2302-4d16-aaab-bce55c92b19c': 'Jimit',
+          '04738b5e-be19-4440-b26d-faf838d99a92': 'Parul Admin',
+          'df919690-b99a-4f6a-811c-8bf785a2cbbf': 'Test User'
+        }
+
+        let peerName = (initialPeerId === peerId && initialPeerName && initialPeerName !== 'Match User') ? initialPeerName : 'Unknown User'
         if (peerObj) {
-          if (Array.isArray(peerObj) && peerObj.length > 0) {
-            peerName = peerObj[0].name || peerName
-          } else if (peerObj.name) {
+          if (Array.isArray(peerObj) && peerObj.length > 0 && peerObj[0].name && peerObj[0].name !== 'User' && peerObj[0].name !== 'Unknown User') {
+            peerName = peerObj[0].name
+          } else if (peerObj.name && peerObj.name !== 'User' && peerObj.name !== 'Unknown User') {
             peerName = peerObj.name
           }
+        }
+
+        if ((!peerName || peerName === 'Unknown User' || peerName === 'User') && knownUserNames[peerId]) {
+          peerName = knownUserNames[peerId]
         }
         
         const key = `${peerId}_${m.item_id}`
@@ -69,10 +80,10 @@ export default function SecureChat() {
             unread: 0
           })
         } else {
-          // If the conversation already exists, ensure the name is updated correctly
+          // If the conversation already exists, ensure the name is updated correctly when valid name is found
           const existingConv = convMap.get(key)
           if (existingConv.name === 'Match User' || existingConv.name === 'Unknown User' || existingConv.name === 'User') {
-             if (peerName !== 'Unknown User') {
+             if (peerName && peerName !== 'Unknown User' && peerName !== 'User') {
                  existingConv.name = peerName
              }
           }

@@ -39,7 +39,7 @@ function App() {
         <Route path="/items/:id" element={<ProtectedRoute allowedRoles={['student', 'university_admin', 'super_admin']}><ItemDetail /></ProtectedRoute>} />
         <Route path="/matches" element={<ProtectedRoute allowedRoles={['student']}><SmartMatch /></ProtectedRoute>} />
         <Route path="/verify/:id" element={<ProtectedRoute allowedRoles={['student', 'university_admin']}><ClaimVerification /></ProtectedRoute>} />
-        <Route path="/chat" element={<ProtectedRoute allowedRoles={['student']}><SecureChat /></ProtectedRoute>} />
+        <Route path="/chat" element={<ProtectedRoute allowedRoles={['student', 'university_admin', 'super_admin']}><SecureChat /></ProtectedRoute>} />
         <Route path="/tracking/:id" element={<ProtectedRoute allowedRoles={['student']}><RecoveryTracking /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute allowedRoles={['student', 'university_admin', 'super_admin']}><Notifications /></ProtectedRoute>} />
         <Route path="/my-reports" element={<ProtectedRoute allowedRoles={['student']}><MyReports /></ProtectedRoute>} />
