@@ -8,27 +8,20 @@ import {
   ChevronRight, CheckCircle2, Circle, ArrowRight, Share2, Flag, Loader
 } from 'lucide-react'
 
-// Using dynamic data instead of hardcoded itemData
-const timeline = [
-  { label: 'Reported', time: 'Jun 19, 2:35 PM', done: true },
-  { label: 'Categorized by AI', time: 'Jun 19, 2:36 PM', done: true },
-  { label: 'Matching Started', time: 'Jun 19, 2:36 PM', done: true },
-  { label: 'Match Found', time: 'Jun 19, 4:52 PM', done: true, highlight: true },
-  { label: 'Verification Pending', time: 'Awaiting', done: false },
-  { label: 'Secure Handover', time: '—', done: false },
-  { label: 'Recovery Completed', time: '—', done: false },
-]
-
-const similarMatches = [
-  { title: 'MacBook Air 13" Silver', match: '72%', location: 'Cafeteria', time: '5h ago' },
-  { title: 'Silver Laptop (unlabeled)', match: '61%', location: 'Parking Area', time: '1d ago' },
-]
 
 export default function ItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user')
+      if (stored) setCurrentUser(JSON.parse(stored))
+    } catch {}
+  }, [])
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -60,6 +53,19 @@ export default function ItemDetail() {
 
   if (!item) return null;
 
+  const createdAt = item.created_at ? new Date(item.created_at) : new Date();
+  
+  // Create a dynamic timeline based on the item's creation date and status
+  const timeline = [
+    { label: 'Reported', time: createdAt.toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}), done: true },
+    { label: 'Categorized by AI', time: new Date(createdAt.getTime() + 60000).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}), done: true },
+    { label: 'Matching Started', time: new Date(createdAt.getTime() + 65000).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}), done: true },
+    { label: 'Match Found', time: item.status === 'MATCHED' || item.status === 'RECOVERED' ? 'Yes' : 'In Progress', done: item.status === 'MATCHED' || item.status === 'RECOVERED', highlight: item.status === 'MATCHED' },
+    { label: 'Verification Pending', time: item.status === 'VERIFYING' ? 'Awaiting' : '—', done: item.status === 'VERIFYING' || item.status === 'RECOVERED' },
+    { label: 'Secure Handover', time: item.status === 'RECOVERED' ? 'Completed' : '—', done: item.status === 'RECOVERED' },
+    { label: 'Recovery Completed', time: item.status === 'RECOVERED' ? 'Completed' : '—', done: item.status === 'RECOVERED' },
+  ];
+
   return (
     <AppLayout title="Item Details">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -79,8 +85,12 @@ export default function ItemDetail() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-surface rounded-3xl border border-secondary-100 shadow-md overflow-hidden"
             >
-              <div className="h-64 bg-secondary-50 flex items-center justify-center text-8xl relative">
-                {item.category === 'electronics' ? '💻' : item.category === 'documents' ? '📄' : item.category === 'keys' ? '🔑' : '📦'}
+              <div className="h-64 bg-secondary-50 flex items-center justify-center text-8xl relative overflow-hidden">
+                {item.images && item.images.length > 0 ? (
+                  <img src={`http://localhost:5000/uploads/${item.images[0]}`} alt={item.title} className="w-full h-full object-cover" />
+                ) : (
+                  item.category === 'electronics' ? '💻' : item.category === 'documents' ? '📄' : item.category === 'keys' ? '🔑' : '📦'
+                )}
                 <div className="absolute top-4 left-4">
                   <span className={`badge ${item.type === 'LOST' ? 'badge-error' : 'badge-success'}`}>{item.type}</span>
                 </div>
@@ -165,18 +175,25 @@ export default function ItemDetail() {
             >
               <h3 className="font-semibold text-secondary-900 mb-4">Actions</h3>
               <div className="space-y-3">
-                <Link to="/verify/1" className="btn-primary w-full justify-center">
-                  <ShieldCheck className="w-4 h-4" />
-                  Claim This Item
-                </Link>
-                <Link to={`/chat?peerId=${item.user_id}&itemId=${item.id}&peerName=${encodeURIComponent(item.profiles?.name || 'User')}&itemTitle=${encodeURIComponent(item.title)}`} className="btn-secondary w-full justify-center">
-                  <MessageSquare className="w-4 h-4" />
-                  Contact {item.type === 'LOST' ? 'Finder' : 'Owner'}
-                </Link>
-                <Link to="/matches" className="btn-ghost w-full justify-center text-sm">
-                  <Brain className="w-4 h-4" />
-                  View AI Matches
-                </Link>
+                {currentUser?.id !== item.user_id ? (
+                  <>
+                    {item.type === 'FOUND' && (
+                      <Link to="/verify/1" className="btn-primary w-full justify-center">
+                        <ShieldCheck className="w-4 h-4" />
+                        Claim This Item
+                      </Link>
+                    )}
+                    <Link to={`/chat?peerId=${item.user_id}&itemId=${item.id}&peerName=${encodeURIComponent(item.profiles?.name || 'User')}&itemTitle=${encodeURIComponent(item.title)}`} className="btn-secondary w-full justify-center">
+                      <MessageSquare className="w-4 h-4" />
+                      Contact {item.type === 'LOST' ? 'Owner' : 'Finder'}
+                    </Link>
+                  </>
+                ) : (
+                  <Link to="/matches" className="btn-primary w-full justify-center">
+                    <Brain className="w-4 h-4" />
+                    Review AI Matches
+                  </Link>
+                )}
               </div>
             </motion.div>
 
@@ -196,24 +213,36 @@ export default function ItemDetail() {
             </div>
 
             {/* Similar Matches */}
-            <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-secondary-900 text-sm">Similar Found Items</h3>
-                <Brain className="w-4 h-4 text-primary" />
+            {currentUser?.id === item.user_id && item.matches && (
+              <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-secondary-900 text-sm">Similar {item.type === 'LOST' ? 'Found' : 'Lost'} Items</h3>
+                  <Brain className="w-4 h-4 text-primary" />
+                </div>
+                <div className="space-y-3">
+                  {item.matches.length > 0 ? item.matches.map((m, i) => {
+                    const otherItem = m.lost_item_id === item.id ? m.found_item : m.lost_item;
+                    if (!otherItem) return null;
+                    const dateStr = new Date(otherItem.date || m.created_at).toLocaleDateString([], {month: 'short', day: 'numeric'});
+                    
+                    return (
+                      <Link key={m.id || i} to={`/matches`} className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary-50 transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-xl">
+                          {otherItem.category === 'electronics' ? '💻' : otherItem.category === 'documents' ? '📄' : otherItem.category === 'keys' ? '🔑' : '📦'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-secondary-900 truncate">{otherItem.title}</div>
+                          <div className="text-xs text-secondary-400">{otherItem.location} · {dateStr}</div>
+                        </div>
+                        <span className="text-xs font-bold text-primary flex-shrink-0">{m.overall_score}%</span>
+                      </Link>
+                    )
+                  }) : (
+                    <p className="text-sm text-secondary-500 text-center py-2">No AI matches found yet.</p>
+                  )}
+                </div>
               </div>
-              <div className="space-y-3">
-                {similarMatches.map((m, i) => (
-                  <Link key={i} to="/items" className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary-50 transition-colors">
-                    <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-xl">💻</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-secondary-900 truncate">{m.title}</div>
-                      <div className="text-xs text-secondary-400">{m.location} · {m.time}</div>
-                    </div>
-                    <span className="text-xs font-bold text-primary flex-shrink-0">{m.match}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

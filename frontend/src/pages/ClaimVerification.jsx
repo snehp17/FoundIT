@@ -38,8 +38,8 @@ export default function ClaimVerification() {
             </motion.div>
             <h2 className="text-2xl font-bold text-secondary-900 mb-2">Verification Submitted!</h2>
             <p className="text-secondary-500 mb-8">Your answers have been sent to the moderator for review. You'll be notified within 24 hours.</p>
-            <button onClick={() => navigate('/tracking/1')} className="btn-primary w-full justify-center">
-              Track Recovery Status
+            <button onClick={() => navigate('/matches')} className="btn-primary w-full justify-center">
+              Back to Smart Matches
               <ArrowRight className="w-4 h-4" />
             </button>
           </motion.div>

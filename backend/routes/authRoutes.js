@@ -61,7 +61,7 @@ router.post("/register", async (req, res) => {
     console.log("Using supabase key:", supabase.supabaseKey.substring(0, 15) + "...");
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert({
+      .upsert({
         id: userId,
         name: name,
         email: email,
@@ -73,7 +73,7 @@ router.post("/register", async (req, res) => {
       console.error("Profile creation error:", profileError);
       // Clean up auth user if profile fails
       await supabase.auth.admin.deleteUser(userId);
-      return res.status(500).json({ message: "Server error during profile creation" });
+      return res.status(500).json({ message: "Server error during profile creation: " + profileError.message });
     }
 
     res.json({ message: "User registered successfully", user: { id: userId, name, role: 'student' } });

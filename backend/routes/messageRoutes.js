@@ -30,8 +30,8 @@ router.get('/', authenticate, async (req, res) => {
     const itemIds = [...new Set(messages.map(m => m.item_id))];
 
     const [{ data: profiles }, { data: itemsWithProfiles }] = await Promise.all([
-      authedSupabase.from('profiles').select('id, name, email').in('id', userIds),
-      authedSupabase.from('items').select('id, title, status, user_id, profiles(id, name, email)').in('user_id', userIds)
+      supabase.from('profiles').select('id, name, email').in('id', userIds),
+      supabase.from('items').select('id, title, status, user_id, profiles(id, name, email)').in('user_id', userIds)
     ]);
 
     const profileMap = new Map();
@@ -104,7 +104,7 @@ router.post('/', authenticate, async (req, res) => {
     };
 
     // Create a notification for the receiver
-    const { error: notifError } = await authedSupabase
+    const { error: notifError } = await supabase
       .from('notifications')
       .insert([{
         user_id: receiver_id,

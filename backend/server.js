@@ -21,6 +21,8 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const messageRoutes = require('./routes/messageRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const supportRoutes = require('./routes/supportRoutes');
+const matchRoutes = require('./routes/matchRoutes');
+const recoveryRoutes = require('./routes/recoveryRoutes');
 app.use("/api/auth", authRoutes);
 app.use("/api/items", itemRoutes);
 app.use("/api/admin", adminRoutes);
@@ -28,6 +30,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/matches', matchRoutes);
+app.use('/api/recovery', recoveryRoutes);
 app.get('/', (req, res) => {
   res.send('API Running');
 });

@@ -274,6 +274,112 @@ router.get('/students', authenticate, authorize(['university_admin', 'super_admi
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+// Add a student to the university
+router.post('/students', authenticate, authorize(['university_admin', 'super_admin']), async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const universityId = req.user.role === 'university_admin' ? req.user.university_id : req.body.universityId;
+
+    if (!universityId) return res.status(400).json({ message: 'universityId is required' });
+    if (!name || !email || !password) return res.status(400).json({ message: 'Name, email, and password are required' });
+
+    // 1. Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true,
+      user_metadata: { name, role: 'student', university_id: universityId }
+    });
+
+    if (authError) return res.status(400).json({ message: authError.message });
+
+    // 2. Create profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .upsert([{
+        id: authData.user.id,
+        name,
+        email,
+        role: 'student',
+        university_id: universityId
+      }])
+      .select()
+      .single();
+
+    if (profileError) {
+      // Cleanup auth if profile fails
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      return res.status(500).json({ message: "Server error during profile creation: " + profileError.message });
+    }
+
+    res.json({ message: 'Student added successfully', student: profile });
+  } catch (error) {
+    console.error('Error adding student:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete a student
+router.delete('/students/:id', authenticate, authorize(['university_admin', 'super_admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First, verify the student belongs to the admin's university
+    const { data: student, error: fetchError } = await supabase
+      .from('profiles')
+      .select('university_id')
+      .eq('id', id)
+      .single();
+      
+    if (fetchError || !student) return res.status(404).json({ message: 'Student not found' });
+    
+    if (req.user.role === 'university_admin' && student.university_id !== req.user.university_id) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    // Delete user from Supabase Auth (cascades to profile)
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(id);
+    if (deleteError) throw deleteError;
+
+    res.json({ message: 'Student deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting student:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete an item
+router.delete('/items/:id', authenticate, authorize(['university_admin', 'super_admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verify item belongs to admin's university
+    const { data: item, error: fetchError } = await supabase
+      .from('items')
+      .select('university_id')
+      .eq('id', id)
+      .single();
+      
+    if (fetchError || !item) return res.status(404).json({ message: 'Item not found' });
+    
+    if (req.user.role === 'university_admin' && item.university_id !== req.user.university_id) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('items')
+      .delete()
+      .eq('id', id);
+      
+    if (deleteError) throw deleteError;
+
+    res.json({ message: 'Item deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 // Get Analytics
 router.get('/analytics', authenticate, authorize('super_admin', 'university_admin', 'moderator'), async (req, res) => {
   try {

@@ -16,6 +16,8 @@ const statusColors = {
   'Available': 'badge-primary',
   'Claimed': 'badge-secondary',
   'Active': 'badge-secondary',
+  'Closed': 'bg-green-100 text-green-700 border border-green-200',
+  'Recovered': 'bg-green-100 text-green-700 border border-green-200',
 }
 
 function SkeletonCard() {

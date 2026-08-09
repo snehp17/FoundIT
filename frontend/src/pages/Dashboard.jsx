@@ -12,37 +12,68 @@ import api from '../api'
 // Removing hardcoded recentItems
 // const recentItems = [...]
 
-const notifications = [
-  { icon: Brain, text: '94% match found for your Student ID Card report', time: '5m ago', type: 'match', color: 'text-primary bg-primary/10' },
-  { icon: CheckCircle2, text: 'Your MacBook Pro claim has been verified', time: '1h ago', type: 'verify', color: 'text-accent bg-accent/10' },
-  { icon: Bell, text: 'New item found in Main Library – Laptop Bag', time: '3h ago', type: 'alert', color: 'text-warning bg-warning/10' },
-]
+
 
 export default function Dashboard() {
-  const stats = [
-    { icon: Package, label: 'Active Reports', value: '3', change: '+1 today', color: 'text-primary', bg: 'bg-primary/10', trend: 'up' },
-    { icon: Brain, label: 'AI Matches', value: '2', change: '87% avg confidence', color: 'text-purple-600', bg: 'bg-purple-100', trend: 'up' },
-    { icon: Clock, label: 'Pending Claims', value: '1', change: 'Awaiting verification', color: 'text-warning', bg: 'bg-warning/10', trend: 'neutral' },
-    { icon: CheckCircle2, label: 'Items Recovered', value: '4', change: 'Total lifetime', color: 'text-accent', bg: 'bg-accent/10', trend: 'up' },
-  ]
-
   const [recentItems, setRecentItems] = useState([])
   const [loadingItems, setLoadingItems] = useState(true)
+  const [notifications, setNotifications] = useState([])
+  const [dynamicStats, setDynamicStats] = useState({ active: 0, matches: 0, pending: 0, recovered: 0 })
 
   useEffect(() => {
-    const fetchItems = async () => {
+    const fetchNotifications = async () => {
       try {
-        const res = await api.get('/items')
-        const sorted = res.data.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5)
+        const res = await api.get('/notifications')
+        setNotifications(res.data.slice(0, 4))
+      } catch (err) {
+        console.error('Error fetching notifications:', err)
+      }
+    }
+    fetchNotifications()
+  }, [])
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [itemsRes, matchesRes, myReportsRes] = await Promise.all([
+          api.get('/items'),
+          api.get('/matches'),
+          api.get('/items/user/my-reports')
+        ])
+
+        const allItems = itemsRes.data || []
+        const allMatches = matchesRes.data || []
+        const myReports = myReportsRes.data || []
+
+        // Active reports = user's items that are not Closed
+        const activeReports = myReports.filter(i => i.status !== 'Closed').length
+        // AI matches = pending matches
+        const aiMatches = allMatches.filter(m => m.status === 'pending').length
+        // Pending claims = matches accepted but recovery not closed
+        const pendingClaims = allMatches.filter(m => m.status === 'accepted' && m.recovery?.status !== 'CLOSED').length
+        // Recovered = user's closed items
+        const recovered = myReports.filter(i => i.status === 'Closed').length
+
+        setDynamicStats({ active: activeReports, matches: aiMatches, pending: pendingClaims, recovered })
+
+        // Recent items = only non-closed
+        const sorted = allItems.filter(i => i.status !== 'Closed').sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5)
         setRecentItems(sorted)
       } catch (error) {
-        console.error('Error fetching recent items:', error)
+        console.error('Error fetching dashboard data:', error)
       } finally {
         setLoadingItems(false)
       }
     }
-    fetchItems()
+    fetchDashboardData()
   }, [])
+
+  const stats = [
+    { icon: Package, label: 'Active Reports', value: String(dynamicStats.active), change: 'Your open reports', color: 'text-primary', bg: 'bg-primary/10', trend: 'up' },
+    { icon: Brain, label: 'AI Matches', value: String(dynamicStats.matches), change: 'Pending review', color: 'text-purple-600', bg: 'bg-purple-100', trend: 'up' },
+    { icon: Clock, label: 'In Recovery', value: String(dynamicStats.pending), change: 'Awaiting handover', color: 'text-warning', bg: 'bg-warning/10', trend: 'neutral' },
+    { icon: CheckCircle2, label: 'Items Recovered', value: String(dynamicStats.recovered), change: 'Successfully returned', color: 'text-accent', bg: 'bg-accent/10', trend: 'up' },
+  ]
 
   return (
     <AppLayout title="Campus Dashboard">
@@ -160,17 +191,34 @@ export default function Dashboard() {
                 <Link to="/notifications" className="text-xs text-primary">See all</Link>
               </div>
               <div className="divide-y divide-secondary-100">
-                {notifications.map((notif, i) => (
-                  <div key={i} className="flex items-start gap-3 px-5 py-3.5">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${notif.color}`}>
-                      <notif.icon className="w-4 h-4" />
+                {notifications.length === 0 ? (
+                  <div className="px-5 py-4 text-center text-sm text-secondary-500">No recent alerts.</div>
+                ) : notifications.map((notif, i) => {
+                  let Icon = Bell;
+                  let color = 'text-warning bg-warning/10';
+                  if (notif.type === 'match') {
+                     Icon = Brain;
+                     color = 'text-primary bg-primary/10';
+                  } else if (notif.type === 'recovery' || notif.type === 'verify') {
+                     Icon = CheckCircle2;
+                     color = 'text-accent bg-accent/10';
+                  }
+
+                  const timeStr = new Date(notif.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                  return (
+                    <div key={notif.id || i} className="flex items-start gap-3 px-5 py-3.5">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-secondary-700 leading-relaxed font-medium">{notif.title}</p>
+                        <p className="text-xs text-secondary-500 truncate">{notif.message}</p>
+                        <span className="text-[10px] text-secondary-400 mt-1 block">{timeStr}</span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-secondary-700 leading-relaxed">{notif.text}</p>
-                      <span className="text-xs text-secondary-400">{notif.time}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

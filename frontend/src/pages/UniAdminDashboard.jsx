@@ -1,11 +1,12 @@
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import AppLayout from '../components/AppLayout'
 import api from '../api'
 import {
   Package, Users, CheckCircle2, TrendingUp, AlertTriangle,
-  BarChart2, MapPin, Clock, ChevronRight, Shield, Eye, Trash2
+  BarChart2, MapPin, Clock, ChevronRight, Shield, Eye, Trash2,
+  Plus, X
 } from 'lucide-react'
 
 const kpisTemplate = [
@@ -21,6 +22,13 @@ export default function UniAdminDashboard() {
   const [kpis, setKpis] = useState(kpisTemplate)
   const [loading, setLoading] = useState(true)
   const [superAdminError, setSuperAdminError] = useState('')
+  
+  // Add Student Modal State
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newStudent, setNewStudent] = useState({ name: '', email: '', password: '' })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [addError, setAddError] = useState('')
+
   const navigate = useNavigate()
   
   const handleMessageSuperAdmin = async () => {
@@ -33,46 +41,86 @@ export default function UniAdminDashboard() {
     }
   }
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [studentsRes, itemsRes] = await Promise.all([
+        api.get('/admin/students'),
+        api.get('/items')
+      ]);
+      
+      const studentsData = studentsRes.data || [];
+      const itemsData = itemsRes.data || [];
+
+      setStudents(studentsData);
+      
+      const mappedItems = itemsData.map(item => ({
+        id: item.id,
+        user: item.profiles ? item.profiles.name : 'Unknown',
+        item: item.title,
+        category: item.category,
+        location: item.location,
+        time: new Date(item.created_at).toLocaleDateString(),
+        status: item.status,
+        statusColor: item.status === 'Available' || item.status === 'Resolved' ? 'badge-success' : 'badge-warning'
+      }));
+      
+      setReports(mappedItems);
+
+      setKpis(prev => [
+        { ...prev[0], value: mappedItems.length.toString() },
+        { ...prev[1], value: studentsData.length.toString() },
+        prev[2],
+        { ...prev[3], value: '3' }
+      ]);
+    } catch (err) {
+      console.error('Error fetching uni admin data', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [studentsRes, itemsRes] = await Promise.all([
-          api.get('/admin/students'),
-          api.get('/items')
-        ]);
-        
-        const studentsData = studentsRes.data || [];
-        const itemsData = itemsRes.data || [];
-
-        setStudents(studentsData);
-        
-        const mappedItems = itemsData.map(item => ({
-          id: item.id,
-          user: item.profiles ? item.profiles.name : 'Unknown',
-          item: item.title,
-          category: item.category,
-          location: item.location,
-          time: new Date(item.created_at).toLocaleDateString(),
-          status: item.status,
-          statusColor: item.status === 'Available' || item.status === 'Resolved' ? 'badge-success' : 'badge-warning'
-        }));
-        
-        setReports(mappedItems);
-
-        setKpis(prev => [
-          { ...prev[0], value: mappedItems.length.toString() },
-          { ...prev[1], value: '5' },
-          prev[2],
-          { ...prev[3], value: '3' }
-        ]);
-      } catch (err) {
-        console.error('Error fetching uni admin data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, [])
+
+  const handleAddStudent = async (e) => {
+    e.preventDefault();
+    setAddError('');
+    setIsSubmitting(true);
+    try {
+      await api.post('/admin/students', newStudent);
+      setShowAddModal(false);
+      setNewStudent({ name: '', email: '', password: '' });
+      fetchData();
+    } catch (err) {
+      setAddError(err.response?.data?.message || 'Failed to add student');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteStudent = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to permanently delete the student account for ${name}?`)) return;
+    
+    try {
+      await api.delete(`/admin/students/${id}`);
+      fetchData();
+    } catch (err) {
+      alert('Failed to delete student');
+    }
+  };
+
+  const handleDeleteItem = async (id, title) => {
+    if (!window.confirm(`Are you sure you want to permanently delete the report for "${title}"?`)) return;
+    
+    try {
+      await api.delete(`/admin/items/${id}`);
+      fetchData();
+    } catch (err) {
+      alert('Failed to delete item');
+    }
+  };
 
   return (
     <AppLayout title="University Admin Dashboard">
@@ -125,7 +173,7 @@ export default function UniAdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reports.slice(0, 5).map(r => (
+                    {reports.map(r => (
                       <tr key={r.id} className="hover:bg-secondary-50 transition-colors">
                         <td className="table-cell font-medium">{r.user}</td>
                         <td className="table-cell">{r.item}</td>
@@ -142,10 +190,10 @@ export default function UniAdminDashboard() {
                         </td>
                         <td className="table-cell">
                           <div className="flex items-center gap-1">
-                            <button className="p-1.5 rounded-lg hover:bg-primary/10 text-secondary-400 hover:text-primary transition-colors">
+                            <Link to={`/items/${r.id}`} className="p-1.5 rounded-lg hover:bg-primary/10 text-secondary-400 hover:text-primary transition-colors">
                               <Eye className="w-3.5 h-3.5" />
-                            </button>
-                            <button className="p-1.5 rounded-lg hover:bg-error/10 text-secondary-400 hover:text-error transition-colors">
+                            </Link>
+                            <button onClick={() => handleDeleteItem(r.id, r.item)} className="p-1.5 rounded-lg hover:bg-error/10 text-secondary-400 hover:text-error transition-colors">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -183,23 +231,41 @@ export default function UniAdminDashboard() {
 
             {/* Students List */}
             <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-5">
-              <h3 className="font-semibold text-secondary-900 mb-4 flex items-center justify-between">
-                Registered Students
-                <span className="text-xs bg-primary-50 text-primary px-2 py-1 rounded-full">{students.length}</span>
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-secondary-900 flex items-center">
+                  Registered Students
+                  <span className="ml-2 text-xs bg-primary-50 text-primary px-2 py-1 rounded-full">{students.length}</span>
+                </h3>
+                <button 
+                  onClick={() => setShowAddModal(true)}
+                  className="text-xs flex items-center gap-1 text-primary hover:text-primary-700 bg-primary/10 px-2 py-1 rounded-lg transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Add
+                </button>
+              </div>
+
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                 {loading ? (
                   <p className="text-sm text-secondary-400 text-center py-4">Loading students...</p>
                 ) : students.length > 0 ? (
                   students.map((student, i) => (
-                    <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-secondary-50 transition-colors">
-                      <div className="w-8 h-8 rounded-full bg-secondary-100 flex items-center justify-center text-secondary-600 font-medium text-sm">
-                        {student.name.charAt(0)}
+                    <div key={i} className="flex items-center justify-between p-2 rounded-xl hover:bg-secondary-50 transition-colors group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-secondary-100 flex items-center justify-center text-secondary-600 font-medium text-sm flex-shrink-0">
+                          {student.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-secondary-900 truncate">{student.name}</div>
+                          <div className="text-xs text-secondary-400 truncate">{student.email}</div>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-secondary-900 truncate">{student.name}</div>
-                        <div className="text-xs text-secondary-400 truncate">{student.email}</div>
-                      </div>
+                      <button 
+                        onClick={() => handleDeleteStudent(student.id, student.name)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-secondary-400 hover:bg-error/10 hover:text-error transition-all"
+                        title="Remove student"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ))
                 ) : (
@@ -210,6 +276,74 @@ export default function UniAdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Add Student Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface rounded-3xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-secondary-100">
+                <h3 className="text-lg font-bold text-secondary-900">Add New Student</h3>
+                <button onClick={() => setShowAddModal(false)} className="text-secondary-400 hover:text-secondary-600 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleAddStudent} className="p-6 space-y-4">
+                {addError && (
+                  <div className="bg-error/10 text-error text-sm p-3 rounded-lg border border-error/20">
+                    {addError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    className="input-field"
+                    value={newStudent.name}
+                    onChange={e => setNewStudent({...newStudent, name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    className="input-field"
+                    value={newStudent.email}
+                    onChange={e => setNewStudent({...newStudent, email: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Temporary Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    className="input-field"
+                    value={newStudent.password}
+                    onChange={e => setNewStudent({...newStudent, password: e.target.value})}
+                  />
+                </div>
+                <div className="pt-4 flex justify-end gap-3">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="btn bg-secondary-100 text-secondary-700 hover:bg-secondary-200">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={isSubmitting} className="btn-primary">
+                    {isSubmitting ? 'Adding...' : 'Add Student'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </AppLayout>
   )
 }

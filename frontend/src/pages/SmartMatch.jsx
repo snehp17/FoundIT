@@ -1,217 +1,389 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
-import { useSearchParams } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import AppLayout from '../components/AppLayout'
-import { Brain, CheckCircle2, XCircle, MapPin, Clock, Tag, ArrowRight, ShieldCheck } from 'lucide-react'
 import api from '../api'
+import {
+  Sparkles, CheckCircle2, XCircle, MessageSquare, ChevronRight,
+  MapPin, Calendar, Tag, Zap, AlertCircle, RefreshCw, Shield,
+  TrendingUp, Image, FileText, Clock
+} from 'lucide-react'
 
-const matchData = {
-  lost: {
-    title: 'MacBook Pro 14" Silver',
-    category: 'Electronics',
-    location: 'Main Library',
-    date: 'Jun 19, 2025',
-    color: 'Space Gray',
-    desc: 'M3 chip, blue sticker near Apple logo, scratch on bottom left corner',
-  },
-  found: {
-    title: 'Silver Laptop (Apple)',
-    category: 'Electronics',
-    location: 'Cafeteria Adjacent',
-    date: 'Jun 19, 2025',
-    color: 'Silver/Gray',
-    desc: 'Apple laptop found near Main Library entrance, has sticker on lid, charger not found',
-  },
-  confidence: 87,
-  attributes: [
-    { name: 'Category', match: true, lost: 'Electronics', found: 'Electronics' },
-    { name: 'Brand', match: true, lost: 'Apple / MacBook', found: 'Apple Laptop' },
-    { name: 'Color', match: true, lost: 'Space Gray', found: 'Silver/Gray' },
-    { name: 'Location', match: true, lost: 'Main Library', found: 'Near Main Library' },
-    { name: 'Date', match: true, lost: 'Jun 19', found: 'Jun 19' },
-    { name: 'Description', match: true, lost: 'Sticker on lid', found: 'Sticker on lid ✓' },
-    { name: 'Accessories', match: false, lost: 'With bag', found: 'No bag found' },
-  ]
+const statusColors = {
+  pending: 'badge-warning',
+  accepted: 'badge-success',
+  rejected: 'badge-error',
+  expired: 'text-secondary-400 bg-secondary-100'
+}
+
+const statusLabels = {
+  pending: 'Awaiting Review',
+  accepted: 'Match Accepted',
+  rejected: 'Rejected',
+  expired: 'Expired'
+}
+
+function ScoreBar({ label, value, icon: Icon }) {
+  if (value === null || value === undefined) return null
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-1 text-secondary-500">
+          <Icon className="w-3 h-3" />{label}
+        </div>
+        <span className="font-semibold text-secondary-700">{value}%</span>
+      </div>
+      <div className="h-1.5 bg-secondary-100 rounded-full overflow-hidden">
+        <motion.div
+          className={`h-full rounded-full ${value >= 70 ? 'bg-accent' : value >= 40 ? 'bg-amber-400' : 'bg-red-400'}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${value}%` }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function MatchCard({ match, onAccept, onReject, onViewTracking }) {
+  const [expanded, setExpanded] = useState(false)
+  const [acting, setActing] = useState(false)
+
+  const isOwner = match.userRole === 'owner'
+  const isPending = match.status === 'pending'
+  const score = match.overall_score ?? 0
+  const scoreColor = score >= 70 ? 'text-accent' : score >= 45 ? 'text-amber-500' : 'text-red-500'
+
+  const lostImg = match.lost_item?.images?.[0]
+  const foundImg = match.found_item?.images?.[0]
+  const imgBase = 'http://localhost:5000/uploads/'
+
+  const handleAccept = async () => {
+    setActing(true)
+    await onAccept(match.id)
+    setActing(false)
+  }
+
+  const handleReject = async () => {
+    setActing(true)
+    await onReject(match.id)
+    setActing(false)
+  }
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-surface rounded-3xl border border-secondary-100 shadow-md overflow-hidden"
+    >
+      {/* Card Header */}
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-lg ${score >= 70 ? 'bg-accent/10' : score >= 45 ? 'bg-amber-50' : 'bg-red-50'}`}>
+              <span className={scoreColor}>{Math.round(score)}</span>
+            </div>
+            <div>
+              <p className="text-xs text-secondary-400 font-medium">AI Match Score</p>
+              <div className="flex items-center gap-1">
+                <Sparkles className={`w-3 h-3 ${scoreColor}`} />
+                <span className={`text-sm font-bold ${scoreColor}`}>
+                  {score >= 70 ? 'High Confidence' : score >= 45 ? 'Possible Match' : 'Low Match'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <span className={`badge text-xs ${statusColors[match.status]}`}>
+            {statusLabels[match.status]}
+          </span>
+        </div>
+
+        {/* Items comparison */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {/* Lost Item */}
+          <div className="bg-red-50 rounded-2xl p-3 border border-red-100">
+            <p className="text-xs font-semibold text-red-600 mb-2 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> LOST
+            </p>
+            {lostImg && (
+              <img src={`${imgBase}${lostImg}`} alt="" className="w-full h-20 object-cover rounded-xl mb-2" />
+            )}
+            <p className="font-semibold text-secondary-800 text-sm truncate">{match.lost_item?.title || '—'}</p>
+            <p className="text-xs text-secondary-500 flex items-center gap-1 mt-1 truncate">
+              <Tag className="w-3 h-3" />{match.lost_item?.category || '—'}
+            </p>
+            {match.lost_item?.location && (
+              <p className="text-xs text-secondary-400 flex items-center gap-1 mt-0.5 truncate">
+                <MapPin className="w-3 h-3" />{match.lost_item.location}
+              </p>
+            )}
+          </div>
+
+          {/* Found Item */}
+          <div className="bg-green-50 rounded-2xl p-3 border border-green-100">
+            <p className="text-xs font-semibold text-accent flex items-center gap-1 mb-2">
+              <span className="w-2 h-2 rounded-full bg-accent inline-block" /> FOUND
+            </p>
+            {foundImg && (
+              <img src={`${imgBase}${foundImg}`} alt="" className="w-full h-20 object-cover rounded-xl mb-2" />
+            )}
+            <p className="font-semibold text-secondary-800 text-sm truncate">{match.found_item?.title || '—'}</p>
+            <p className="text-xs text-secondary-500 flex items-center gap-1 mt-1 truncate">
+              <Tag className="w-3 h-3" />{match.found_item?.category || '—'}
+            </p>
+            {match.found_item?.location && (
+              <p className="text-xs text-secondary-400 flex items-center gap-1 mt-0.5 truncate">
+                <MapPin className="w-3 h-3" />{match.found_item.location}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Expand for scores */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-between text-xs text-primary font-medium hover:text-primary/80 transition-colors"
+        >
+          <span className="flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /> Score Breakdown</span>
+          <ChevronRight className={`w-4 h-4 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+        </button>
+
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3 space-y-2 overflow-hidden"
+            >
+              <ScoreBar label="Text Similarity" value={match.text_score} icon={FileText} />
+              {match.image_score !== null && <ScoreBar label="Image Similarity" value={match.image_score} icon={Image} />}
+              <ScoreBar label="Location Match" value={match.location_score} icon={MapPin} />
+              <ScoreBar label="Date Proximity" value={match.date_score} icon={Calendar} />
+              <div className="flex items-center gap-2 pt-1 text-xs">
+                <Tag className="w-3 h-3 text-secondary-400" />
+                <span className="text-secondary-500">Category:</span>
+                <span className={match.category_match ? 'text-accent font-semibold' : 'text-red-500'}>
+                  {match.category_match ? '✓ Match' : '✗ Different'}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Actions */}
+      {match.recovery && (
+        <div className="px-5 pb-4">
+          <button
+            onClick={() => onViewTracking(match.recovery.id)}
+            className="btn-primary btn-sm w-full"
+          >
+            <Shield className="w-4 h-4" /> View Recovery Tracking
+          </button>
+        </div>
+      )}
+      {!match.recovery && isPending && isOwner && (
+        <div className="px-5 pb-4 flex gap-3">
+          <button
+            onClick={handleAccept}
+            disabled={acting}
+            className="btn-primary btn-sm flex-1"
+          >
+            {acting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            Accept Match
+          </button>
+          <button
+            onClick={handleReject}
+            disabled={acting}
+            className="btn-secondary btn-sm flex-1 !border-red-200 !text-red-600 hover:!bg-red-50"
+          >
+            <XCircle className="w-4 h-4" /> Reject
+          </button>
+        </div>
+      )}
+      {!match.recovery && isPending && !isOwner && (
+        <div className="px-5 pb-4">
+          <div className="flex items-center gap-2 text-xs text-secondary-400 bg-secondary-50 rounded-xl p-3">
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            Waiting for the item owner to review and accept this match.
+          </div>
+        </div>
+      )}
+      {!match.recovery && match.status === 'accepted' && (
+        <div className="px-5 pb-4">
+          <div className="flex items-center gap-2 text-xs text-accent bg-accent/5 rounded-xl p-3">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            Match accepted — tracking record being created.
+          </div>
+        </div>
+      )}
+      {match.status === 'rejected' && (
+        <div className="px-5 pb-4">
+          <div className="flex items-center gap-2 text-xs text-red-500 bg-red-50 rounded-xl p-3">
+            <XCircle className="w-4 h-4 flex-shrink-0" />
+            This match was rejected.
+          </div>
+        </div>
+      )}
+    </motion.div>
+  )
 }
 
 export default function SmartMatch() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const foundId = searchParams.get('foundId')
-  const lostId = searchParams.get('lostId')
-
+  const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(true)
-  const [matchData, setMatchData] = useState(null)
+  const [error, setError] = useState(null)
+  const [filter, setFilter] = useState('all') // all, pending, accepted
+
+  const fetchMatches = async () => {
+    try {
+      setLoading(true)
+      const res = await api.get('/matches')
+      setMatches(res.data)
+      setError(null)
+    } catch (err) {
+      console.error('Error fetching matches:', err)
+      setError('Could not load matches. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    if (!foundId || !lostId) {
-      setLoading(false)
-      return
-    }
-
-    const fetchMatches = async () => {
-      try {
-        const foundRes = await api.get(`/items/${foundId}`)
-        const lostRes = await api.get(`/items/${lostId}`)
-        
-        const foundItem = foundRes.data
-        const lostItem = lostRes.data
-
-        setMatchData({
-          lost: {
-            title: lostItem.title,
-            category: lostItem.category,
-            location: lostItem.location,
-            date: new Date(lostItem.date).toLocaleDateString(),
-            color: 'N/A', // Update if color is added to DB
-            desc: lostItem.description,
-            user_id: lostItem.user_id,
-            id: lostItem.id
-          },
-          found: {
-            title: foundItem.title,
-            category: foundItem.category,
-            location: foundItem.location,
-            date: new Date(foundItem.date).toLocaleDateString(),
-            color: 'N/A', // Update if color is added to DB
-            desc: foundItem.description,
-            user_id: foundItem.user_id,
-            id: foundItem.id
-          },
-          confidence: 85, // Mock confidence score for now
-          attributes: [
-            { name: 'Category', match: lostItem.category === foundItem.category, lost: lostItem.category, found: foundItem.category },
-            { name: 'Location', match: lostItem.location === foundItem.location, lost: lostItem.location, found: foundItem.location },
-            { name: 'Date', match: lostItem.date === foundItem.date, lost: new Date(lostItem.date).toLocaleDateString(), found: new Date(foundItem.date).toLocaleDateString() },
-          ]
-        })
-      } catch (err) {
-        console.error("Error fetching match data:", err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchMatches()
-  }, [foundId, lostId])
+  }, [])
 
-  if (loading) return <AppLayout title="Smart AI Match"><div className="p-8 text-center">Loading match data...</div></AppLayout>
-  if (!matchData) return <AppLayout title="Smart AI Match"><div className="p-8 text-center text-error">Match data not found.</div></AppLayout>
+  const handleAccept = async (matchId) => {
+    try {
+      const res = await api.post(`/matches/${matchId}/accept`)
+      if (res.data.recovery_id) {
+        navigate(`/tracking/${res.data.recovery_id}`)
+      } else {
+        fetchMatches()
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to accept match')
+    }
+  }
+
+  const handleReject = async (matchId) => {
+    try {
+      await api.post(`/matches/${matchId}/reject`)
+      setMatches(prev => prev.map(m => m.id === matchId ? { ...m, status: 'rejected' } : m))
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to reject match')
+    }
+  }
+
+  const handleViewTracking = (recoveryId) => {
+    navigate(`/tracking/${recoveryId}`)
+  }
+
+  const filtered = matches.filter(m => filter === 'all' ? true : m.status === filter)
 
   return (
-    <AppLayout title="Smart AI Match">
-      <div className="max-w-5xl mx-auto space-y-6">
-
-        {/* AI Header */}
+    <AppLayout title="Smart Matches">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-secondary-900 rounded-3xl p-6 relative overflow-hidden"
+          className="bg-secondary-900 rounded-3xl p-6 text-white"
         >
-          <div className="absolute inset-0">
-            <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/20 blur-3xl" />
-          </div>
-          <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Brain className="w-5 h-5 text-primary" />
-                <span className="text-sm font-semibold text-primary-300">AI Confidence Score</span>
-              </div>
-              <h2 className="text-3xl font-bold text-white">Potential Match Found!</h2>
-              <p className="text-secondary-400 mt-1">Our AI found a high-confidence match for your lost item.</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <div className="relative w-28 h-28">
-              <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="10" />
-                <motion.circle
-                  cx="50" cy="50" r="40"
-                  fill="none"
-                  stroke="#2563EB"
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  strokeDasharray="251"
-                  initial={{ strokeDashoffset: 251 }}
-                  animate={{ strokeDashoffset: 251 - (251 * matchData.confidence / 100) }}
-                  transition={{ duration: 1.5, delay: 0.3 }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-bold text-white">{matchData.confidence}%</span>
-                <span className="text-xs text-secondary-400">Confident</span>
-              </div>
+            <div>
+              <h2 className="text-xl font-bold">AI Smart Matches</h2>
+              <p className="text-secondary-300 text-sm">Hybrid matching: text + image + location + date</p>
+            </div>
+          </div>
+          <div className="flex gap-4 mt-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-primary">{matches.filter(m => m.status === 'pending').length}</p>
+              <p className="text-xs text-secondary-400">Pending Review</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-accent">{matches.filter(m => m.status === 'accepted').length}</p>
+              <p className="text-xs text-secondary-400">Accepted</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-white">{matches.length}</p>
+              <p className="text-xs text-secondary-400">Total Matches</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Side-by-Side Comparison */}
-        <div className="grid lg:grid-cols-2 gap-5">
-          {[
-            { label: 'YOUR LOST ITEM', data: matchData.lost, color: 'border-error/20 bg-error/5', badge: 'badge-error' },
-            { label: 'FOUND ITEM MATCH', data: matchData.found, color: 'border-accent/20 bg-accent/5', badge: 'badge-success' },
-          ].map(({ label, data, color, badge }) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`bg-surface rounded-3xl border-2 ${color} shadow-md p-5`}
+        {/* Filter Tabs */}
+        <div className="flex gap-2 bg-secondary-50 rounded-2xl p-1">
+          {['all', 'pending', 'accepted', 'rejected'].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-all ${
+                filter === f ? 'bg-white text-primary shadow-sm' : 'text-secondary-500 hover:text-secondary-700'
+              }`}
             >
-              <span className={`badge text-xs mb-4 ${badge}`}>{label}</span>
-              <div className="h-36 bg-secondary-100 rounded-2xl flex items-center justify-center text-5xl mb-4">💻</div>
-              <h3 className="font-bold text-secondary-900 mb-3">{data.title}</h3>
-              <div className="space-y-2">
-                {[
-                  { icon: Tag, label: 'Category', value: data.category },
-                  { icon: MapPin, label: 'Location', value: data.location },
-                  { icon: Clock, label: 'Date', value: data.date },
-                  { icon: Tag, label: 'Color', value: data.color },
-                ].map(({ icon: Icon, label, value }) => (
-                  <div key={label} className="flex items-center gap-2 text-sm">
-                    <Icon className="w-3.5 h-3.5 text-secondary-400" />
-                    <span className="text-secondary-400">{label}:</span>
-                    <span className="font-medium text-secondary-900">{value}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-secondary-500 mt-3 italic">"{data.desc}"</p>
-            </motion.div>
+              {f}
+            </button>
           ))}
         </div>
 
-        {/* Attribute Breakdown */}
-        <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-6">
-          <h3 className="font-semibold text-secondary-900 mb-4 flex items-center gap-2">
-            <Brain className="w-5 h-5 text-primary" />
-            AI Attribute Matching Breakdown
-          </h3>
-          <div className="space-y-3">
-            {matchData.attributes.map((attr, i) => (
-              <div key={i} className={`flex items-center gap-4 p-3 rounded-xl ${attr.match ? 'bg-accent/5' : 'bg-error/5'}`}>
-                {attr.match
-                  ? <CheckCircle2 className="w-5 h-5 text-accent flex-shrink-0" />
-                  : <XCircle className="w-5 h-5 text-error flex-shrink-0" />
-                }
-                <div className="flex-1 grid grid-cols-3 gap-2 text-sm">
-                  <span className="font-semibold text-secondary-900">{attr.name}</span>
-                  <span className="text-secondary-600">{attr.lost}</span>
-                  <span className="text-secondary-600">{attr.found}</span>
-                </div>
-              </div>
+        {/* Content */}
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-surface rounded-3xl border border-secondary-100 h-48 animate-pulse" />
             ))}
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-wrap gap-4 justify-end">
-          <button className="btn-secondary gap-2 text-error border-error/20 hover:bg-error/5">
-            <XCircle className="w-4 h-4" />
-            Reject Match
-          </button>
-          <Link to={`/chat?peerId=${matchData.found.user_id}&itemId=${matchData.found.id}`} className="btn-primary gap-2">
-            <ShieldCheck className="w-4 h-4" />
-            Initiate Secure Chat
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-100 rounded-3xl p-6 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-red-700">Could not load matches</p>
+              <p className="text-sm text-red-500">{error}</p>
+            </div>
+            <button onClick={fetchMatches} className="ml-auto btn-secondary btn-sm">
+              <RefreshCw className="w-4 h-4" /> Retry
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-16"
+          >
+            <div className="w-20 h-20 bg-secondary-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <Zap className="w-10 h-10 text-secondary-300" />
+            </div>
+            <h3 className="text-lg font-bold text-secondary-700 mb-2">
+              {filter === 'all' ? 'No matches yet' : `No ${filter} matches`}
+            </h3>
+            <p className="text-secondary-400 text-sm max-w-xs mx-auto">
+              {filter === 'all'
+                ? 'When someone reports a found item that matches your lost report, AI matches will appear here.'
+                : `You have no ${filter} matches at the moment.`
+              }
+            </p>
+          </motion.div>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map(match => (
+              <MatchCard
+                key={match.id}
+                match={match}
+                onAccept={handleAccept}
+                onReject={handleReject}
+                onViewTracking={handleViewTracking}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </AppLayout>
   )

@@ -6,7 +6,7 @@ async function callGeminiAPI(model, payload) {
     if (!key) {
       return reject(new Error('GEMINI_API_KEY is not defined in environment variables'));
     }
-    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
     const postData = JSON.stringify(payload);
     
     const options = {
@@ -69,7 +69,7 @@ Item Description: ${description}`;
       }
     };
 
-    const res = await callGeminiAPI('gemini-3.5-flash', payload);
+    const res = await callGeminiAPI('gemini-1.5-flash-latest', payload);
     const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('Invalid response structure from Gemini API');
     return text.trim();
@@ -102,7 +102,7 @@ ${attrsString}`;
       }
     };
 
-    const res = await callGeminiAPI('gemini-3.5-flash', payload);
+    const res = await callGeminiAPI('gemini-1.5-flash-latest', payload);
     const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('Invalid response structure from Gemini API');
     return text.trim();
@@ -133,7 +133,25 @@ async function generateImageEmbedding(imageUrl) {
     // Use Xenova/siglip-base-patch16-224 which is standard for image embeddings
     const extractor = await pipeline('image-feature-extraction', 'Xenova/siglip-base-patch16-224');
     const output = await extractor(imageUrl);
-    return Array.from(output.data);
+    
+    let data = output.data;
+    // Mean pooling if output is 3D [batch_size, sequence_length, hidden_size] e.g., [1, 196, 768]
+    if (output.dims && output.dims.length === 3) {
+      const seqLen = output.dims[1];
+      const dim = output.dims[2];
+      const pooled = new Float32Array(dim);
+      for (let i = 0; i < seqLen; i++) {
+        for (let j = 0; j < dim; j++) {
+          pooled[j] += data[i * dim + j];
+        }
+      }
+      for (let j = 0; j < dim; j++) {
+        pooled[j] /= seqLen;
+      }
+      data = pooled;
+    }
+
+    return Array.from(data);
   } catch (error) {
     console.error('Error generating image embedding:', error);
     return null;
@@ -164,7 +182,7 @@ Keep responses concise, friendly, and helpful. If a student needs to escalate a 
       }
     };
 
-    const res = await callGeminiAPI('gemini-3.5-flash', payload);
+    const res = await callGeminiAPI('gemini-1.5-flash-latest', payload);
     const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('Invalid response structure from Gemini API');
     return text.trim();
@@ -190,10 +208,55 @@ Keep responses concise, friendly, and helpful. If a student needs to escalate a 
   }
 }
 
+// 6. Hybrid match score computation
+function computeMatchScore(lostItem, foundItem, textSimilarity = null, imageSimilarity = null) {
+  // Category match (0 or 100)
+  const categoryMatch = !!(lostItem.category && foundItem.category &&
+    lostItem.category.toLowerCase().split(' - ')[0] === foundItem.category.toLowerCase().split(' - ')[0]);
+  const categoryScore = categoryMatch ? 100 : 30;
+
+  // Location similarity (keyword overlap)
+  const lostWords = (lostItem.location || '').toLowerCase().split(/[\s,]+/).filter(w => w.length > 2);
+  const foundWords = (foundItem.location || '').toLowerCase().split(/[\s,]+/).filter(w => w.length > 2);
+  const intersection = lostWords.filter(w => foundWords.includes(w));
+  const union = [...new Set([...lostWords, ...foundWords])];
+  const locationScore = union.length > 0 ? (intersection.length / union.length) * 100 : 50;
+
+  // Date similarity (closer = higher score, -15 per day)
+  const lostDate = lostItem.date ? new Date(lostItem.date) : new Date(lostItem.created_at);
+  const foundDate = foundItem.date ? new Date(foundItem.date) : new Date(foundItem.created_at);
+  const daysDiff = Math.abs((lostDate - foundDate) / (1000 * 60 * 60 * 24));
+  const dateScore = Math.max(0, 100 - daysDiff * 15);
+
+  // Text similarity (from vector search 0-1 → 0-100, default 60)
+  const textScore = textSimilarity !== null ? Math.min(100, textSimilarity * 100) : 60;
+
+  // Image similarity (from vector search 0-1 → 0-100)
+  const imageScore = imageSimilarity !== null ? Math.min(100, imageSimilarity * 100) : null;
+
+  // Weighted overall score
+  let overall;
+  if (imageScore !== null) {
+    overall = textScore * 0.35 + imageScore * 0.20 + categoryScore * 0.20 + locationScore * 0.15 + dateScore * 0.10;
+  } else {
+    overall = textScore * 0.45 + categoryScore * 0.25 + locationScore * 0.20 + dateScore * 0.10;
+  }
+
+  return {
+    overall_score: Math.min(100, Math.round(overall * 10) / 10),
+    text_score: Math.round(textScore * 10) / 10,
+    image_score: imageScore !== null ? Math.round(imageScore * 10) / 10 : null,
+    category_match: categoryMatch,
+    location_score: Math.round(locationScore * 10) / 10,
+    date_score: Math.round(dateScore * 10) / 10
+  };
+}
+
 module.exports = {
   categorizeItem,
   autoDescribe: generateAutoDescription,
   generateTextEmbedding,
   generateImageEmbedding,
-  supportChat
+  supportChat,
+  computeMatchScore
 };
