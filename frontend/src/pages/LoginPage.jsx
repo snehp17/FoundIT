@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Compass, ArrowRight, Eye, EyeOff, Mail, Lock, User, Phone, CheckCircle2, Zap } from 'lucide-react'
 import api from '../api'
@@ -12,6 +12,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || null
 
   const handleTabSwitch = (newTab) => {
     setTab(newTab)
@@ -53,8 +55,12 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify(response.data));
         // Add token to api header globally or let interceptor handle it
         api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-        
-        if (response.data.role === 'super_admin') {
+
+        // If there's a redirect param and it belongs to the user's role, use it
+        // Otherwise fall back to role-based default dashboard
+        if (redirectTo) {
+          navigate(redirectTo)
+        } else if (response.data.role === 'super_admin') {
           navigate('/admin')
         } else if (response.data.role === 'university_admin') {
           navigate('/uni-admin')

@@ -1,37 +1,64 @@
 import { Link } from 'react-router-dom'
-import { Compass, Share2, ExternalLink, Mail, MapPin } from 'lucide-react'
+import { Share2, ExternalLink, Mail } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
-const footerLinks = {
-  Platform: [
-    { label: 'Lost Items', href: '/items?type=lost' },
-    { label: 'Found Items', href: '/items?type=found' },
-    { label: 'Report Item', href: '/report-lost' },
-    { label: 'How It Works', href: '/#how-it-works' },
-    { label: 'AI Matching', href: '/#features' },
-  ],
-  Company: [
-    { label: 'About Us', href: '/#about' },
-    { label: 'Blog', href: '/#blog' },
-    { label: 'Careers', href: '/#careers' },
-    { label: 'Press', href: '/#press' },
-    { label: 'Contact', href: '/#contact' },
-  ],
-  Universities: [
-    { label: 'Partner With Us', href: '/partner' },
-    { label: 'Admin Portal', href: '/admin' },
-    { label: 'Moderator Tools', href: '/moderator' },
-    { label: 'Analytics', href: '/analytics' },
-    { label: 'API Docs', href: '/#api-docs' },
-  ],
-  Legal: [
-    { label: 'Privacy Policy', href: '/#privacy' },
-    { label: 'Terms of Service', href: '/#terms' },
-    { label: 'Cookie Policy', href: '/#cookies' },
-    { label: 'Security', href: '/#security' },
-  ],
-}
+const platformLinks = [
+  { label: 'Lost Items', href: '/items?type=lost', requiresAuth: true },
+  { label: 'Found Items', href: '/items?type=found', requiresAuth: true },
+  { label: 'Report Item', href: '/report-lost', requiresAuth: true },
+  { label: 'How It Works', href: '/#how-it-works' },
+  { label: 'AI Matching', href: '/#features' },
+]
+
+const companyLinks = [
+  { label: 'About Us', href: '/#about' },
+  { label: 'Blog', href: '/#blog' },
+  { label: 'Careers', href: '/#careers' },
+  { label: 'Press', href: '/#press' },
+  { label: 'Contact', href: '/#contact' },
+]
+
+const universitiesLinks = [
+  { label: 'Partner With Us', href: '/partner' },
+  // Admin-only links — filtered by role below
+  { label: 'Admin Portal', href: '/admin', roles: ['super_admin'] },
+  { label: 'Uni Admin', href: '/uni-admin', roles: ['university_admin'] },
+  { label: 'Moderator Tools', href: '/moderator', roles: ['university_admin', 'super_admin'] },
+  { label: 'Analytics', href: '/analytics', roles: ['university_admin', 'super_admin'] },
+]
+
+const legalLinks = [
+  { label: 'Privacy Policy', href: '/#privacy' },
+  { label: 'Terms of Service', href: '/#terms' },
+  { label: 'Cookie Policy', href: '/#cookies' },
+  { label: 'Security', href: '/#security' },
+]
 
 export default function Footer() {
+  const [userRole, setUserRole] = useState(null)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user')
+      if (stored) setUserRole(JSON.parse(stored)?.role || null)
+    } catch { }
+  }, [])
+
+  // Filter a link list: hide links that require auth or a specific role
+  const filterLinks = (links) =>
+    links.filter(link => {
+      if (link.roles) return link.roles.includes(userRole)   // role-restricted
+      if (link.requiresAuth) return !!userRole               // auth-required
+      return true                                             // public
+    })
+
+  const sections = [
+    { title: 'Platform', links: filterLinks(platformLinks) },
+    { title: 'Company', links: filterLinks(companyLinks) },
+    { title: 'Universities', links: filterLinks(universitiesLinks) },
+    { title: 'Legal', links: filterLinks(legalLinks) },
+  ]
+
   return (
     <footer className="bg-secondary-900 text-white">
       <div className="section-container py-16">
@@ -59,23 +86,25 @@ export default function Footer() {
           </div>
 
           {/* Links */}
-          {Object.entries(footerLinks).map(([section, links]) => (
-            <div key={section}>
-              <h4 className="text-sm font-semibold text-white mb-4">{section}</h4>
-              <ul className="space-y-2.5">
-                {links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      to={link.href}
-                      className="text-sm text-secondary-400 hover:text-white transition-colors duration-200"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {sections.map(({ title, links }) =>
+            links.length > 0 ? (
+              <div key={title}>
+                <h4 className="text-sm font-semibold text-white mb-4">{title}</h4>
+                <ul className="space-y-2.5">
+                  {links.map((link) => (
+                    <li key={link.label}>
+                      <Link
+                        to={link.href}
+                        className="text-sm text-secondary-400 hover:text-white transition-colors duration-200"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null
+          )}
         </div>
 
         {/* Bottom */}
