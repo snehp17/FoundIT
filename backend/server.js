@@ -19,13 +19,15 @@ const itemRoutes = require("./routes/itemRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const messageRoutes = require('./routes/messageRoutes');
-
+const contentRoutes = require('./routes/contentRoutes');
+const supportRoutes = require('./routes/supportRoutes');
 app.use("/api/auth", authRoutes);
 app.use("/api/items", itemRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use('/api/messages', messageRoutes);
-
+app.use('/api/content', contentRoutes);
+app.use('/api/support', supportRoutes);
 app.get('/', (req, res) => {
   res.send('API Running');
 });

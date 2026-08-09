@@ -19,6 +19,8 @@ import ModeratorDashboard from './pages/ModeratorDashboard'
 import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import PartnerUniversity from './pages/PartnerUniversity'
 import UniAdminDashboard from './pages/UniAdminDashboard'
+import BlogPostPage from './pages/BlogPostPage'
+import JobDetailPage from './pages/JobDetailPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -30,6 +32,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/select-university" element={<SelectUniversity />} />
         <Route path="/partner" element={<PartnerUniversity />} />
+        <Route path="/blog/:id" element={<BlogPostPage />} />
+        <Route path="/jobs/:id" element={<JobDetailPage />} />
 
         {/* Protected Routes - Students Only */}
         <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['student']}><Dashboard /></ProtectedRoute>} />

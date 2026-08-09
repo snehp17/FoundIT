@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import AppLayout from '../components/AppLayout'
 import api from '../api'
@@ -20,6 +20,18 @@ export default function UniAdminDashboard() {
   const [students, setStudents] = useState([])
   const [kpis, setKpis] = useState(kpisTemplate)
   const [loading, setLoading] = useState(true)
+  const [superAdminError, setSuperAdminError] = useState('')
+  const navigate = useNavigate()
+  
+  const handleMessageSuperAdmin = async () => {
+    try {
+      const res = await api.get('/support/superadmin')
+      const { adminId, adminName } = res.data
+      navigate(`/chat?peerId=${adminId}&peerName=${encodeURIComponent(adminName)}&itemId=11111111-1111-1111-1111-111111111111&itemTitle=Support+Session`)
+    } catch (err) {
+      setSuperAdminError('No Super Admin account found. Please ensure a super_admin user exists in the system.')
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -153,6 +165,22 @@ export default function UniAdminDashboard() {
 
           {/* Sidebar widgets */}
           <div className="space-y-4">
+            
+            {/* Super Admin Contact */}
+            <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-5 flex flex-col items-center justify-center text-center">
+               <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
+                 <Shield className="w-6 h-6 text-primary" />
+               </div>
+               <h3 className="font-semibold text-secondary-900 mb-1">Need Platform Help?</h3>
+               <p className="text-sm text-secondary-500 mb-4">Contact the Super Admin for platform-wide issues.</p>
+               <button onClick={handleMessageSuperAdmin} className="btn bg-primary text-white hover:bg-primary-hover w-full rounded-xl py-2">
+                 Message Super Admin
+               </button>
+               {superAdminError && (
+                 <p className="text-xs text-red-500 mt-2 text-center">{superAdminError}</p>
+               )}
+            </div>
+
             {/* Students List */}
             <div className="bg-surface rounded-3xl border border-secondary-100 shadow-md p-5">
               <h3 className="font-semibold text-secondary-900 mb-4 flex items-center justify-between">

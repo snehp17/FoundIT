@@ -4,6 +4,7 @@ import { Bell, Search, User, LogOut, X } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../api'
+import SupportWidget from './SupportWidget'
 
 export default function AppLayout({ children, title }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -138,6 +139,9 @@ export default function AppLayout({ children, title }) {
           {children}
         </div>
       </motion.main>
+      
+      {/* Show AI Support Widget only for students */}
+      {user?.role === 'student' && <SupportWidget />}
     </div>
   )
 }

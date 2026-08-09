@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion, useInView, useAnimation, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
+import api from '../api'
 import {
   Search, Upload, Brain, ShieldCheck, MessageSquare, Bell,
   BarChart2, QrCode, TrendingUp, ArrowRight, CheckCircle2,
@@ -109,6 +110,266 @@ const futureTech = [
   { icon: Smartphone, title: 'Mobile Application', desc: 'Native Android and iOS app with offline capability and push notifications.', gradient: 'from-indigo-500 to-blue-600' },
   { icon: Award, title: 'Reward System', desc: 'Gamified badges and rewards for finders who help the community recover items.', gradient: 'from-violet-500 to-purple-600' },
 ]
+
+// ─── DYNAMIC SECTIONS ────────────────────────────────────────────────────────
+
+function BlogSection() {
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get('/content/blog')
+      .then(r => setPosts(r.data))
+      .catch(() => setPosts([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <Section className="section-padding bg-secondary-50" id="blog">
+      <div className="section-container">
+        <div className="text-center mb-16">
+          <div className="inline-block badge-primary mb-4">Latest Insights</div>
+          <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+            FoundIT Blog & <span className="text-gradient">Updates</span>
+          </h2>
+          <p className="text-secondary-500 text-lg max-w-2xl mx-auto">
+            Stay updated on campus safety best practices, AI technology updates, and university partnerships.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-8">
+          {loading
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="glass-card p-6 space-y-3 animate-pulse">
+                  <div className="flex justify-between"><div className="h-5 w-24 bg-secondary-200 rounded-full" /><div className="h-4 w-20 bg-secondary-100 rounded" /></div>
+                  <div className="h-5 w-full bg-secondary-200 rounded" />
+                  <div className="h-4 w-3/4 bg-secondary-100 rounded" />
+                  <div className="h-4 w-5/6 bg-secondary-100 rounded" />
+                </div>
+              ))
+            : posts.map((post) => (
+                <Link key={post.id} to={`/blog/${post.id}`} className="glass-card p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300 group">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className={`badge text-xs ${post.tag_color || 'badge-primary'}`}>{post.tag}</span>
+                      <span className="text-xs text-secondary-400">
+                        {new Date(post.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-secondary-900 text-lg mb-2 group-hover:text-primary transition-colors">{post.title}</h3>
+                    <p className="text-sm text-secondary-500 leading-relaxed mb-6">{post.description}</p>
+                  </div>
+                  <span className="text-sm font-semibold text-primary flex items-center gap-1.5 group-hover:gap-2 transition-all">
+                    Read Full Post <ChevronRight className="w-4 h-4" />
+                  </span>
+                </Link>
+              ))
+          }
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+function CareersSection() {
+  const [jobs, setJobs] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get('/content/jobs')
+      .then(r => setJobs(r.data))
+      .catch(() => setJobs([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <Section className="section-padding bg-surface" id="careers">
+      <div className="section-container">
+        <div className="text-center mb-16">
+          <div className="inline-block badge-primary mb-4">We Are Hiring</div>
+          <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+            Join Our Mission at <span className="text-gradient">FoundIT</span>
+          </h2>
+          <p className="text-secondary-500 text-lg max-w-2xl mx-auto">
+            Help us expand to campuses nationwide and engineer next-gen recovery tools.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          {loading
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="glass-card p-6 space-y-3 animate-pulse border border-secondary-100">
+                  <div className="h-5 w-32 bg-secondary-200 rounded-full" />
+                  <div className="h-5 w-full bg-secondary-200 rounded" />
+                  <div className="h-4 w-5/6 bg-secondary-100 rounded" />
+                  <div className="h-9 w-full bg-secondary-200 rounded-xl mt-4" />
+                </div>
+              ))
+            : jobs.map((job) => (
+                <div key={job.id} className="glass-card p-6 border border-secondary-100 flex flex-col justify-between hover:shadow-lg hover:border-primary/30 transition-all">
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="badge text-xs bg-primary/10 text-primary">{job.type}</span>
+                      <span className="text-xs text-secondary-400">{job.location}</span>
+                    </div>
+                    <h3 className="font-bold text-secondary-900 text-lg mb-2">{job.role}</h3>
+                    <p className="text-sm text-secondary-500 leading-relaxed mb-6 line-clamp-3">{job.description}</p>
+                  </div>
+                  <Link
+                    to={`/jobs/${job.id}`}
+                    className="btn-secondary btn-sm w-full justify-center"
+                  >
+                    View & Apply
+                  </Link>
+                </div>
+              ))
+          }
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+function PressSection() {
+  const [articles, setArticles] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get('/content/press')
+      .then(r => setArticles(r.data))
+      .catch(() => setArticles([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <Section className="section-padding bg-secondary-50" id="press">
+      <div className="section-container">
+        <div className="text-center mb-16">
+          <div className="inline-block badge-primary mb-4">Press & Media</div>
+          <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+            FoundIT in the <span className="text-gradient">News</span>
+          </h2>
+          <p className="text-secondary-500 text-lg max-w-2xl mx-auto">
+            Read how FoundIT is modernizing lost-and-found operations across higher education.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {loading
+            ? Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="glass-card p-8 border border-secondary-100 space-y-3 animate-pulse">
+                  <div className="h-3 w-32 bg-secondary-200 rounded" />
+                  <div className="h-6 w-full bg-secondary-200 rounded" />
+                  <div className="h-4 w-5/6 bg-secondary-100 rounded" />
+                  <div className="h-4 w-24 bg-secondary-200 rounded" />
+                </div>
+              ))
+            : articles.map((article) => (
+                <div key={article.id} className="glass-card p-8 border border-secondary-100">
+                  <div className={`text-xs font-bold uppercase tracking-wider mb-2 ${article.source_color || 'text-primary'}`}>
+                    {article.source}
+                  </div>
+                  <h3 className="text-xl font-bold text-secondary-900 mb-3">{article.title}</h3>
+                  <p className="text-sm text-secondary-500 leading-relaxed mb-6">{article.description}</p>
+                  <a
+                    href={article.link_url || '#'}
+                    target={article.link_url && article.link_url !== '#' ? '_blank' : undefined}
+                    rel="noreferrer"
+                    className={`text-sm font-semibold inline-flex items-center gap-1 ${article.source_color || 'text-primary'}`}
+                  >
+                    {article.link_label}
+                  </a>
+                </div>
+              ))
+          }
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+function ContactSection() {
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      await api.post('/content/contact', form)
+      setSuccess(true)
+      setForm({ name: '', email: '', subject: '', message: '' })
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send message. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Section className="section-padding bg-surface" id="contact">
+      <div className="section-container max-w-4xl">
+        <div className="text-center mb-12">
+          <div className="inline-block badge-primary mb-4">Contact Us</div>
+          <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
+            Get in Touch with <span className="text-gradient">FoundIT</span>
+          </h2>
+          <p className="text-secondary-500 text-lg max-w-xl mx-auto">
+            Have questions about your campus integration, support, or partnership inquiries? Send us a message!
+          </p>
+        </div>
+
+        {success ? (
+          <div className="glass-card p-12 border border-accent/30 text-center">
+            <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-accent" />
+            </div>
+            <h3 className="text-xl font-bold text-secondary-900 mb-2">Message Received!</h3>
+            <p className="text-secondary-500 mb-6">The FoundIT team will respond within 24 hours.</p>
+            <button onClick={() => setSuccess(false)} className="btn-primary">Send Another Message</button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="glass-card p-8 border border-secondary-100 space-y-4">
+            {error && <div className="p-3 bg-error/10 text-error rounded-xl text-sm">{error}</div>}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-secondary-700 mb-1">Your Name</label>
+                <input
+                  type="text" required placeholder="Alex Smith" className="input-field w-full"
+                  value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-secondary-700 mb-1">Email Address</label>
+                <input
+                  type="email" required placeholder="alex@university.edu" className="input-field w-full"
+                  value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-secondary-700 mb-1">University / Subject</label>
+              <input
+                type="text" required placeholder="e.g. Parul University or General Question" className="input-field w-full"
+                value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-secondary-700 mb-1">Message</label>
+              <textarea
+                rows="4" required placeholder="How can we help you?" className="input-field w-full"
+                value={form.message} onChange={e => setForm({ ...form, message: e.target.value })}
+              />
+            </div>
+            <button type="submit" disabled={loading} className="btn-primary w-full justify-center disabled:opacity-60">
+              {loading ? 'Sending…' : 'Send Message'}
+            </button>
+          </form>
+        )}
+      </div>
+    </Section>
+  )
+}
 
 
 
@@ -684,168 +945,16 @@ export default function LandingPage() {
       </Section>
 
       {/* ─── BLOG ─── */}
-      <Section className="section-padding bg-secondary-50" id="blog">
-        <div className="section-container">
-          <div className="text-center mb-16">
-            <div className="inline-block badge-primary mb-4">Latest Insights</div>
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
-              FoundIT Blog & <span className="text-gradient">Updates</span>
-            </h2>
-            <p className="text-secondary-500 text-lg max-w-2xl mx-auto">
-              Stay updated on campus safety best practices, AI technology updates, and university partnerships.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                tag: 'Technology',
-                title: 'How Multi-Modal AI Boosts Item Recovery Rates by 78%',
-                date: 'May 14, 2025',
-                desc: 'Deep dive into vector embeddings, text similarity, and image recognition algorithms powering FoundIT 2.0.'
-              },
-              {
-                tag: 'University News',
-                tagColor: 'badge-success',
-                title: 'Parul & Silver Oak University Partner with FoundIT',
-                date: 'April 28, 2025',
-                desc: 'Over 50,000 students across partner campuses gain access to central automated recovery portals.'
-              },
-              {
-                tag: 'Campus Guide',
-                tagColor: 'badge-warning',
-                title: '5 Crucial Steps to Take Right After Losing Electronics',
-                date: 'April 10, 2025',
-                desc: 'How to lock accounts, report to campus security, and upload exact distinguishing traits to FoundIT.'
-              }
-            ].map((post, i) => (
-              <div key={i} className="glass-card p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className={`badge text-xs ${post.tagColor || 'badge-primary'}`}>{post.tag}</span>
-                    <span className="text-xs text-secondary-400">{post.date}</span>
-                  </div>
-                  <h3 className="font-bold text-secondary-900 text-lg mb-2 hover:text-primary transition-colors cursor-pointer">{post.title}</h3>
-                  <p className="text-sm text-secondary-500 leading-relaxed mb-6">{post.desc}</p>
-                </div>
-                <button onClick={() => alert(`Reading article: "${post.title}"`)} className="text-sm font-semibold text-primary flex items-center gap-1.5 hover:gap-2 transition-all">
-                  Read Full Post <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
+      <BlogSection />
 
       {/* ─── CAREERS ─── */}
-      <Section className="section-padding bg-surface" id="careers">
-        <div className="section-container">
-          <div className="text-center mb-16">
-            <div className="inline-block badge-primary mb-4">We Are Hiring</div>
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
-              Join Our Mission at <span className="text-gradient">FoundIT</span>
-            </h2>
-            <p className="text-secondary-500 text-lg max-w-2xl mx-auto">
-              Help us expand to campuses nationwide and engineer next-gen recovery tools.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {[
-              { role: 'Student Campus Ambassador', type: 'Part-Time / Campus', location: 'On Campus', desc: 'Lead student outreach, organize recovery drives, and represent FoundIT at your university.' },
-              { role: 'Frontend Engineer (React)', type: 'Full-Time / Hybrid', location: 'Remote / Hybrid', desc: 'Build responsive, sleek user interfaces and real-time interactive components.' },
-              { role: 'AI & Data Search Specialist', type: 'Full-Time / Hybrid', location: 'Remote', desc: 'Improve multi-modal image & text similarity models for instant item pairing.' },
-            ].map((job, i) => (
-              <div key={i} className="glass-card p-6 border border-secondary-100 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="badge text-xs bg-primary/10 text-primary">{job.type}</span>
-                    <span className="text-xs text-secondary-400">{job.location}</span>
-                  </div>
-                  <h3 className="font-bold text-secondary-900 text-lg mb-2">{job.role}</h3>
-                  <p className="text-sm text-secondary-500 leading-relaxed mb-6">{job.desc}</p>
-                </div>
-                <button onClick={() => alert(`Application submitted for ${job.role}! Our team will get back to you.`)} className="btn-secondary btn-sm w-full justify-center">
-                  Apply Now
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
+      <CareersSection />
 
       {/* ─── PRESS ─── */}
-      <Section className="section-padding bg-secondary-50" id="press">
-        <div className="section-container">
-          <div className="text-center mb-16">
-            <div className="inline-block badge-primary mb-4">Press & Media</div>
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
-              FoundIT in the <span className="text-gradient">News</span>
-            </h2>
-            <p className="text-secondary-500 text-lg max-w-2xl mx-auto">
-              Read how FoundIT is modernizing lost-and-found operations across higher education.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <div className="glass-card p-8 border border-secondary-100">
-              <div className="text-xs text-primary font-bold uppercase tracking-wider mb-2">EdTech Weekly · Feature</div>
-              <h3 className="text-xl font-bold text-secondary-900 mb-3">"How AI-Powered Matching is Eliminating Campus Lost Item Backlogs"</h3>
-              <p className="text-sm text-secondary-500 leading-relaxed mb-6">
-                Universities implementing FoundIT report a 70%+ increase in successful claim resolutions within the first month.
-              </p>
-              <a href="#press" onClick={(e) => { e.preventDefault(); alert("Downloading FoundIT Press Kit..."); }} className="text-sm font-semibold text-primary inline-flex items-center gap-1">Download Press Kit (PDF) →</a>
-            </div>
-            <div className="glass-card p-8 border border-secondary-100">
-              <div className="text-xs text-accent font-bold uppercase tracking-wider mb-2">Campus Security Digest</div>
-              <h3 className="text-xl font-bold text-secondary-900 mb-3">"Improving Student Safety with Privacy-First Masked Communication"</h3>
-              <p className="text-sm text-secondary-500 leading-relaxed mb-6">
-                Eliminating public phone number posts on social media drastically reduces harassment and scam attempts on campus.
-              </p>
-              <a href="#press" onClick={(e) => { e.preventDefault(); alert("Opening Official Media Release..."); }} className="text-sm font-semibold text-accent inline-flex items-center gap-1">Read Media Release →</a>
-            </div>
-          </div>
-        </div>
-      </Section>
+      <PressSection />
 
       {/* ─── CONTACT ─── */}
-      <Section className="section-padding bg-surface" id="contact">
-        <div className="section-container max-w-4xl">
-          <div className="text-center mb-12">
-            <div className="inline-block badge-primary mb-4">Contact Us</div>
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-secondary-900 mb-4">
-              Get in Touch with <span className="text-gradient">FoundIT</span>
-            </h2>
-            <p className="text-secondary-500 text-lg max-w-xl mx-auto">
-              Have questions about your campus integration, support, or partnership inquiries? Send us a message!
-            </p>
-          </div>
-
-          <form onSubmit={(e) => { e.preventDefault(); alert("Thank you for reaching out! The FoundIT team will respond within 24 hours."); e.target.reset(); }} className="glass-card p-8 border border-secondary-100 space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-secondary-700 mb-1">Your Name</label>
-                <input type="text" required placeholder="Alex Smith" className="input-field w-full" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-secondary-700 mb-1">Email Address</label>
-                <input type="email" required placeholder="alex@university.edu" className="input-field w-full" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-secondary-700 mb-1">University / Subject</label>
-              <input type="text" required placeholder="e.g. Parul University or General Question" className="input-field w-full" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-secondary-700 mb-1">Message</label>
-              <textarea rows="4" required placeholder="How can we help you?" className="input-field w-full"></textarea>
-            </div>
-            <button type="submit" className="btn-primary w-full justify-center">
-              Send Message
-            </button>
-          </form>
-        </div>
-      </Section>
+      <ContactSection />
 
       {/* ─── API DOCS ─── */}
       <Section className="section-padding bg-secondary-50" id="api-docs">

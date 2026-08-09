@@ -1,8 +1,43 @@
-const { OpenAI } = require('openai');
+const https = require('https');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+async function callGeminiAPI(model, payload) {
+  return new Promise((resolve, reject) => {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      return reject(new Error('GEMINI_API_KEY is not defined in environment variables'));
+    }
+    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`;
+    const postData = JSON.stringify(payload);
+    
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    const req = https.request(url, options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(new Error('Failed to parse Gemini response JSON'));
+          }
+        } else {
+          reject(new Error(`Gemini API error (Status ${res.statusCode}): ${body}`));
+        }
+      });
+    });
+
+    req.on('error', (e) => reject(e));
+    req.write(postData);
+    req.end();
+  });
+}
 
 // Dynamic import for ES module @xenova/transformers
 let pipeline;
@@ -20,19 +55,26 @@ async function loadTransformers() {
 // 1. AI Categorization
 async function categorizeItem(title, description) {
   try {
-    const prompt = `Categorize the following lost/found item into a single broad category (e.g., Electronics, Keys, Wallet, ID/Documents, Clothing, Bag, Other) and a sub-category if applicable. Return the response in the format "Category - Subcategory".
+    const promptText = `Categorize the following lost/found item into a single broad category (e.g., Electronics, Keys, Wallet, ID/Documents, Clothing, Bag, Other) and a sub-category if applicable. Return the response in the format "Category - Subcategory".
 Item Title: ${title}
 Item Description: ${description}`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 20
-    });
+    const payload = {
+      contents: [{
+        parts: [{ text: promptText }]
+      }],
+      generationConfig: {
+        maxOutputTokens: 100,
+        temperature: 0.2
+      }
+    };
 
-    return response.choices[0].message.content.trim();
+    const res = await callGeminiAPI('gemini-3.5-flash', payload);
+    const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Invalid response structure from Gemini API');
+    return text.trim();
   } catch (error) {
-    console.error('Error categorizing item:', error);
+    console.error('Error categorizing item with Gemini:', error.message);
     return 'Other';
   }
 }
@@ -44,21 +86,28 @@ async function generateAutoDescription(title, description, attributes) {
     if (attributes && Object.keys(attributes).length > 0) {
       attrsString = 'Attributes: ' + JSON.stringify(attributes);
     }
-    const prompt = `Based on the user's input, generate a concise, standardized AI description of the item. Focus on the core identifying features (color, brand, type, notable marks). Output ONLY the description.
+    const promptText = `Based on the user's input, generate a concise, standardized AI description of the item. Focus on the core identifying features (color, brand, type, notable marks). Output ONLY the description.
 User Input:
 Title: ${title}
 Description: ${description}
 ${attrsString}`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 50
-    });
+    const payload = {
+      contents: [{
+        parts: [{ text: promptText }]
+      }],
+      generationConfig: {
+        maxOutputTokens: 500,
+        temperature: 0.2
+      }
+    };
 
-    return response.choices[0].message.content.trim();
+    const res = await callGeminiAPI('gemini-3.5-flash', payload);
+    const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Invalid response structure from Gemini API');
+    return text.trim();
   } catch (error) {
-    console.error('Error generating AI description:', error);
+    console.error('Error generating AI description with Gemini:', error.message);
     return description;
   }
 }
@@ -91,9 +140,60 @@ async function generateImageEmbedding(imageUrl) {
   }
 }
 
+// 5. Support Chat
+async function supportChat(messages) {
+  try {
+    const systemPrompt = `You are the FoundIT AI Support Assistant. FoundIT is an AI-powered lost and found platform for university campuses. 
+Your goal is to help students navigate the platform, understand how to report items, explain the AI matching process, and give general advice on recovering lost items.
+Keep responses concise, friendly, and helpful. If a student needs to escalate a complex issue, advise them they can click "Talk to University Admin".`;
+
+    // Map OpenAI roles to Gemini roles ('user' and 'model')
+    const contents = messages.map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }));
+
+    const payload = {
+      contents: contents,
+      systemInstruction: {
+        parts: [{ text: systemPrompt }]
+      },
+      generationConfig: {
+        maxOutputTokens: 1024,
+        temperature: 0.7
+      }
+    };
+
+    const res = await callGeminiAPI('gemini-3.5-flash', payload);
+    const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Invalid response structure from Gemini API');
+    return text.trim();
+  } catch (error) {
+    console.error('Error in support chat with Gemini:', error.message);
+    
+    // Offline / Quota exceeded fallback responses
+    if (messages && messages.length > 0) {
+      const userMessage = messages[messages.length - 1].content.toLowerCase();
+      
+      if (userMessage.includes('fraud') || userMessage.includes('fake') || userMessage.includes('issue') || userMessage.includes('scam')) {
+         return "If you are facing a personal issue like fraud or need urgent assistance, please click 'Talk to University Admin' below to connect directly with your university administration.";
+      }
+      if (userMessage.includes('report') || userMessage.includes('lost') || userMessage.includes('found')) {
+         return "To report an item, click on 'Report Item' in the navigation bar. You can choose whether you lost or found the item, provide details, and upload an image for AI matching.";
+      }
+      if (userMessage.includes('hello') || userMessage.includes('hi')) {
+         return "Hello! I am the FoundIT AI Support Assistant. How can I help you today?";
+      }
+    }
+    
+    return "I am currently running in offline fallback mode because my AI brain is encountering an issue. For basic questions, I can help you report items. For personal issues or fraud, please escalate to your university admin by clicking the button below.";
+  }
+}
+
 module.exports = {
   categorizeItem,
   autoDescribe: generateAutoDescription,
   generateTextEmbedding,
-  generateImageEmbedding
+  generateImageEmbedding,
+  supportChat
 };

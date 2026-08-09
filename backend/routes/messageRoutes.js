@@ -16,9 +16,7 @@ router.get('/', authenticate, async (req, res) => {
 
     let messagesQuery = authedSupabase.from('messages').select('*').order('created_at', { ascending: true });
 
-    if (req.user.role !== 'super_admin' && req.user.role !== 'university_admin') {
-      messagesQuery = messagesQuery.or(`sender_id.eq.${req.user.id},receiver_id.eq.${req.user.id}`);
-    }
+    messagesQuery = messagesQuery.or(`sender_id.eq.${req.user.id},receiver_id.eq.${req.user.id}`);
 
     const { data: messages, error } = await messagesQuery;
 

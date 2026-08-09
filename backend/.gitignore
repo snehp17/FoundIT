@@ -1,3 +1,11 @@
 node_modules
 .env
 uploads
+
+# Debug / test scratch files
+test_*.js
+check_*.js
+enable_pgvector.js
+seed.js
+gemini_models.txt
+gemini_response.json

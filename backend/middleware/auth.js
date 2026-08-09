@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
 
 const userCache = new Map([
@@ -15,21 +16,43 @@ const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
+    const jwtSecret = process.env.SUPABASE_JWT_SECRET;
 
-    // Verify token and get user
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    let decoded;
 
-    if (error || !user) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+    if (jwtSecret) {
+      // LOCAL verification — no network call, tolerates ±120s clock skew
+      try {
+        decoded = jwt.verify(token, Buffer.from(jwtSecret, 'base64'), {
+          algorithms: ['HS256'],
+          clockTolerance: 120 // allow 2 minutes of clock drift
+        });
+      } catch (jwtErr) {
+        console.warn('Local JWT verify failed, falling back to Supabase:', jwtErr.message);
+        // Fallback to Supabase remote verification
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (error || !user) {
+          return res.status(401).json({ error: 'Invalid or expired token' });
+        }
+        decoded = { sub: user.id, email: user.email, user_metadata: user.user_metadata };
+      }
+    } else {
+      // No JWT secret configured — use Supabase remote verification
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      if (error || !user) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      decoded = { sub: user.id, email: user.email, user_metadata: user.user_metadata };
     }
 
-    // Attach user information to request
+    // Attach user info to request
+    const meta = decoded.user_metadata || {};
     req.user = {
-      id: user.id,
-      email: user.email,
-      role: user.user_metadata?.role || 'student',
-      university_id: user.user_metadata?.university_id,
-      name: user.user_metadata?.name || (user.email ? user.email.split('@')[0] : 'User')
+      id: decoded.sub,
+      email: decoded.email,
+      role: meta.role || 'student',
+      university_id: meta.university_id,
+      name: meta.name || (decoded.email ? decoded.email.split('@')[0] : 'User')
     };
 
     if (req.user.id && req.user.name && req.user.name !== 'User') {
