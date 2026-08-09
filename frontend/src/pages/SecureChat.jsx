@@ -327,9 +327,9 @@ export default function SecureChat() {
                   {msg.text?.startsWith('[ATTACHMENT]:') ? (
                     <div className="mt-1">
                       {msg.text.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                        <img src={`http://localhost:5000${msg.text.split('[ATTACHMENT]:')[1]}`} alt="attachment" className="max-w-xs rounded-lg" />
+                        <img src={`${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000'}${msg.text.split('[ATTACHMENT]:')[1]}`} alt="attachment" className="max-w-xs rounded-lg" />
                       ) : (
-                        <a href={`http://localhost:5000${msg.text.split('[ATTACHMENT]:')[1]}`} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                        <a href={`${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000'}${msg.text.split('[ATTACHMENT]:')[1]}`} target="_blank" rel="noopener noreferrer" className="underline font-medium">
                           View Attachment
                         </a>
                       )}

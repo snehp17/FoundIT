@@ -87,7 +87,7 @@ export default function ItemDetail() {
             >
               <div className="h-64 bg-secondary-50 flex items-center justify-center text-8xl relative overflow-hidden">
                 {item.images && item.images.length > 0 ? (
-                  <img src={`http://localhost:5000/uploads/${item.images[0]}`} alt={item.title} className="w-full h-full object-cover" />
+                  <img src={`${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000'}/uploads/${item.images[0]}`} alt={item.title} className="w-full h-full object-cover" />
                 ) : (
                   item.category === 'electronics' ? '💻' : item.category === 'documents' ? '📄' : item.category === 'keys' ? '🔑' : '📦'
                 )}

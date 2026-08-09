@@ -56,7 +56,7 @@ function MatchCard({ match, onAccept, onReject, onViewTracking }) {
 
   const lostImg = match.lost_item?.images?.[0]
   const foundImg = match.found_item?.images?.[0]
-  const imgBase = 'http://localhost:5000/uploads/'
+  const imgBase = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '/uploads/') : 'http://localhost:5000/uploads/'
 
   const handleAccept = async () => {
     setActing(true)
