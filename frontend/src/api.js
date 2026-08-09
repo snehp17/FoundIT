@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: API_URL,
 });
 
 // REQUEST INTERCEPTOR: attach access token from localStorage
@@ -65,7 +67,7 @@ api.interceptors.response.use(
         }
 
         // Call the new /auth/refresh endpoint
-        const { data } = await axios.post('http://localhost:5000/api/auth/refresh', {
+        const { data } = await axios.post(`${API_URL}/auth/refresh`, {
           refresh_token: user.refresh_token
         });
 
