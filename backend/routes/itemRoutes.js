@@ -6,22 +6,34 @@ const { authenticate } = require("../middleware/auth");
 const { categorizeItem, autoDescribe, generateTextEmbedding, generateImageEmbedding, computeMatchScore } = require("../services/aiService");
 const path = require('path');
 
-// Configure Multer for image uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // POST - Report a lost/found item
 router.post("/report", authenticate, upload.array("images", 5), async (req, res) => {
   try {
     const { type, title, description, category, location, date, time, brand, color, secretDetail } = req.body;
-    const imageFilenames = req.files ? req.files.map(f => f.filename) : [];
+    let imageFilenames = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const uniqueName = `${Date.now()}-${file.originalname}`;
+        const { data, error } = await supabase.storage
+          .from('uploads')
+          .upload(uniqueName, file.buffer, {
+            contentType: file.mimetype,
+          });
+        
+        if (error) {
+          console.error("Error uploading to Supabase Storage:", error);
+          continue;
+        }
+        
+        const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(uniqueName);
+        if (publicUrlData && publicUrlData.publicUrl) {
+          imageFilenames.push(publicUrlData.publicUrl);
+        }
+      }
+    }
 
     let finalCategory = category;
     let expandedDescription = description;
@@ -44,8 +56,8 @@ router.post("/report", authenticate, upload.array("images", 5), async (req, res)
       textEmbedding = await generateTextEmbedding(expandedDescription || title);
       if (imageFilenames.length > 0) {
          // Generate embedding for the first image only for now
-         const imagePath = path.join(__dirname, '..', 'uploads', imageFilenames[0]);
-         imageEmbedding = await generateImageEmbedding(imagePath);
+         // Pass the Supabase public URL directly
+         imageEmbedding = await generateImageEmbedding(imageFilenames[0]);
       }
     } catch (embErr) {
       console.log("AI Embedding generation failed, continuing...", embErr.message);

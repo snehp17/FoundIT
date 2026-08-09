@@ -56,7 +56,13 @@ function MatchCard({ match, onAccept, onReject, onViewTracking }) {
 
   const lostImg = match.lost_item?.images?.[0]
   const foundImg = match.found_item?.images?.[0]
-  const imgBase = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '/uploads/') : 'http://localhost:5000/uploads/'
+  
+  const getImageUrl = (img) => {
+    if (!img) return '';
+    if (img.startsWith('http')) return img;
+    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    return `${base}/uploads/${img}`;
+  };
 
   const handleAccept = async () => {
     setActing(true)
@@ -107,7 +113,7 @@ function MatchCard({ match, onAccept, onReject, onViewTracking }) {
               <span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> LOST
             </p>
             {lostImg && (
-              <img src={`${imgBase}${lostImg}`} alt="" className="w-full h-20 object-cover rounded-xl mb-2" />
+              <img src={getImageUrl(lostImg)} alt="" className="w-full h-20 object-cover rounded-xl mb-2" />
             )}
             <p className="font-semibold text-secondary-800 text-sm truncate">{match.lost_item?.title || '—'}</p>
             <p className="text-xs text-secondary-500 flex items-center gap-1 mt-1 truncate">
@@ -126,7 +132,7 @@ function MatchCard({ match, onAccept, onReject, onViewTracking }) {
               <span className="w-2 h-2 rounded-full bg-accent inline-block" /> FOUND
             </p>
             {foundImg && (
-              <img src={`${imgBase}${foundImg}`} alt="" className="w-full h-20 object-cover rounded-xl mb-2" />
+              <img src={getImageUrl(foundImg)} alt="" className="w-full h-20 object-cover rounded-xl mb-2" />
             )}
             <p className="font-semibold text-secondary-800 text-sm truncate">{match.found_item?.title || '—'}</p>
             <p className="text-xs text-secondary-500 flex items-center gap-1 mt-1 truncate">

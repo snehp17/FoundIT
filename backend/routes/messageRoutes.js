@@ -124,22 +124,35 @@ router.post('/', authenticate, async (req, res) => {
 const multer = require("multer");
 const path = require("path");
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Upload an attachment
-router.post('/upload', authenticate, upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No file uploaded' });
+router.post('/upload', authenticate, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const uniqueName = `${Date.now()}-${req.file.originalname}`;
+    const { data, error } = await supabase.storage
+      .from('uploads')
+      .upload(uniqueName, req.file.buffer, {
+        contentType: req.file.mimetype,
+      });
+
+    if (error) throw error;
+
+    const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(uniqueName);
+    if (publicUrlData && publicUrlData.publicUrl) {
+      res.json({ url: publicUrlData.publicUrl });
+    } else {
+      throw new Error("Could not get public URL");
+    }
+  } catch (error) {
+    console.error('Error uploading attachment:', error);
+    res.status(500).json({ message: 'Error uploading file' });
   }
-  res.json({ url: `/uploads/${req.file.filename}` });
 });
 
 module.exports = router;

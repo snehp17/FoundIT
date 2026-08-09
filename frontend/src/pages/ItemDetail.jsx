@@ -16,6 +16,13 @@ export default function ItemDetail() {
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState(null)
 
+  const getImageUrl = (img) => {
+    if (!img) return '';
+    if (img.startsWith('http')) return img;
+    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    return `${base}/uploads/${img}`;
+  };
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem('user')
@@ -87,7 +94,7 @@ export default function ItemDetail() {
             >
               <div className="h-64 bg-secondary-50 flex items-center justify-center text-8xl relative overflow-hidden">
                 {item.images && item.images.length > 0 ? (
-                  <img src={`${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000'}/uploads/${item.images[0]}`} alt={item.title} className="w-full h-full object-cover" />
+                  <img src={getImageUrl(item.images[0])} alt={item.title} className="w-full h-full object-cover" />
                 ) : (
                   item.category === 'electronics' ? '💻' : item.category === 'documents' ? '📄' : item.category === 'keys' ? '🔑' : '📦'
                 )}

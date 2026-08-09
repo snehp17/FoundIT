@@ -13,6 +13,15 @@ export default function SecureChat() {
   const initialPeerName = searchParams.get('peerName') || 'Match User'
   const initialItemTitle = searchParams.get('itemTitle') || 'Matched Item'
 
+  const [sending, setSending] = useState(false)
+  
+  const getImageUrl = (img) => {
+    if (!img) return '';
+    if (img.startsWith('http')) return img;
+    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    return `${base}${img}`;
+  };
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [conversations, setConversations] = useState([])
@@ -327,9 +336,9 @@ export default function SecureChat() {
                   {msg.text?.startsWith('[ATTACHMENT]:') ? (
                     <div className="mt-1">
                       {msg.text.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                        <img src={`${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000'}${msg.text.split('[ATTACHMENT]:')[1]}`} alt="attachment" className="max-w-xs rounded-lg" />
+                        <img src={getImageUrl(msg.text.split('[ATTACHMENT]:')[1])} alt="attachment" className="max-w-xs rounded-lg" />
                       ) : (
-                        <a href={`${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000'}${msg.text.split('[ATTACHMENT]:')[1]}`} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                        <a href={getImageUrl(msg.text.split('[ATTACHMENT]:')[1])} target="_blank" rel="noopener noreferrer" className="underline font-medium">
                           View Attachment
                         </a>
                       )}
