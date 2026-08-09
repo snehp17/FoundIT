@@ -10,9 +10,16 @@ const navLinks = [
   { label: 'Partner University', href: '/partner', isRoute: true },
 ]
 
+function getDashboardPath(role) {
+  if (role === 'super_admin') return '/admin'
+  if (role === 'university_admin') return '/uni-admin'
+  return '/dashboard'
+}
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [loggedInUser, setLoggedInUser] = useState(null)
   const location = useLocation()
   const isLanding = location.pathname === '/'
 
@@ -20,6 +27,13 @@ export default function Navbar() {
     const handleScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user')
+      if (stored) setLoggedInUser(JSON.parse(stored))
+    } catch { }
   }, [])
 
   return (
@@ -69,13 +83,23 @@ export default function Navbar() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/login" className="btn-ghost text-sm">
-              Sign In
-            </Link>
-            <Link to="/select-university" className="btn-primary btn-sm text-sm">
-              Get Started
-              <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
-            </Link>
+            {loggedInUser?.token ? (
+              <Link
+                to={getDashboardPath(loggedInUser.role)}
+                className="btn-primary btn-sm text-sm"
+              >
+                Go to Dashboard
+                <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="btn-ghost text-sm">Sign In</Link>
+                <Link to="/select-university" className="btn-primary btn-sm text-sm">
+                  Get Started
+                  <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -120,8 +144,20 @@ export default function Navbar() {
                 )
               ))}
               <div className="pt-3 border-t border-secondary-100 flex flex-col gap-2">
-                <Link to="/login" className="btn-secondary text-center justify-center">Sign In</Link>
-                <Link to="/select-university" className="btn-primary text-center justify-center">Get Started</Link>
+                {loggedInUser?.token ? (
+                  <Link
+                    to={getDashboardPath(loggedInUser.role)}
+                    className="btn-primary text-center justify-center"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    Go to Dashboard
+                  </Link>
+                ) : (
+                  <>
+                    <Link to="/login" className="btn-secondary text-center justify-center" onClick={() => setMobileOpen(false)}>Sign In</Link>
+                    <Link to="/select-university" className="btn-primary text-center justify-center" onClick={() => setMobileOpen(false)}>Get Started</Link>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

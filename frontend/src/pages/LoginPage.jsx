@@ -15,6 +15,22 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams()
   const redirectTo = searchParams.get('redirect') || null
 
+  // If already logged in, send straight to their dashboard
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user')
+      if (stored) {
+        const u = JSON.parse(stored)
+        if (u?.token) {
+          if (redirectTo) navigate(redirectTo, { replace: true })
+          else if (u.role === 'super_admin') navigate('/admin', { replace: true })
+          else if (u.role === 'university_admin') navigate('/uni-admin', { replace: true })
+          else navigate('/dashboard', { replace: true })
+        }
+      }
+    } catch { }
+  }, [])
+
   const handleTabSwitch = (newTab) => {
     setTab(newTab)
     setForm({ 
