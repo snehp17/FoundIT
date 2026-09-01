@@ -38,8 +38,10 @@ router.get('/escalate', authenticate, async (req, res) => {
       .limit(1)
       .maybeSingle();
 
-    if (error || !admin) {
-      console.log('No university admin found for uni:', userUniId);
+    let adminId, adminName;
+
+    if (error || !admin || !admin.name) {
+      console.log('No valid university admin profile found for uni:', userUniId);
       // Fallback: Find a super_admin if no uni admin exists
       const { data: superAdmin, error: superError } = await supabase
         .from('profiles')
@@ -49,12 +51,22 @@ router.get('/escalate', authenticate, async (req, res) => {
         .maybeSingle();
         
       if (superAdmin && !superError) {
-         return res.json({ adminId: superAdmin.id, adminName: superAdmin.name });
+         adminId = superAdmin.id;
+         adminName = superAdmin.name;
+      } else {
+         return res.status(404).json({ message: 'No admin available for escalation' });
       }
-      return res.status(404).json({ message: 'No admin available for escalation' });
+    } else {
+      adminId = admin.id;
+      adminName = admin.name;
     }
 
-    res.json({ adminId: admin.id, adminName: admin.name });
+    if (!adminName) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(adminId);
+      adminName = authUser?.user?.user_metadata?.name || authUser?.user?.email?.split('@')[0] || 'Support Admin';
+    }
+
+    res.json({ adminId, adminName });
   } catch (error) {
     console.error('Error in support escalation route:', error);
     res.status(500).json({ message: 'Failed to escalate support request' });
@@ -75,7 +87,13 @@ router.get('/superadmin', authenticate, async (req, res) => {
       return res.status(404).json({ message: 'No super admin available' });
     }
 
-    res.json({ adminId: superAdmin.id, adminName: superAdmin.name });
+    let adminName = superAdmin.name;
+    if (!adminName) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(superAdmin.id);
+      adminName = authUser?.user?.user_metadata?.name || authUser?.user?.email?.split('@')[0] || 'Super Admin';
+    }
+
+    res.json({ adminId: superAdmin.id, adminName });
   } catch (error) {
     console.error('Error finding super admin:', error);
     res.status(500).json({ message: 'Failed to find super admin' });
@@ -98,7 +116,13 @@ router.get('/university-admin/:uniId', authenticate, async (req, res) => {
       return res.status(404).json({ message: 'No university admin available for this university' });
     }
 
-    res.json({ adminId: admin.id, adminName: admin.name });
+    let adminName = admin.name;
+    if (!adminName) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(admin.id);
+      adminName = authUser?.user?.user_metadata?.name || authUser?.user?.email?.split('@')[0] || 'University Admin';
+    }
+
+    res.json({ adminId: admin.id, adminName });
   } catch (error) {
     console.error('Error finding uni admin:', error);
     res.status(500).json({ message: 'Failed to find university admin' });

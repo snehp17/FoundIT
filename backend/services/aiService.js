@@ -69,7 +69,7 @@ Item Description: ${description}`;
       }
     };
 
-    const res = await callGeminiAPI('gemini-1.5-flash-latest', payload);
+    const res = await callGeminiAPI('gemini-3.6-flash', payload);
     const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('Invalid response structure from Gemini API');
     return text.trim();
@@ -102,7 +102,7 @@ ${attrsString}`;
       }
     };
 
-    const res = await callGeminiAPI('gemini-1.5-flash-latest', payload);
+    const res = await callGeminiAPI('gemini-3.6-flash', payload);
     const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('Invalid response structure from Gemini API');
     return text.trim();
@@ -182,7 +182,7 @@ Keep responses concise, friendly, and helpful. If a student needs to escalate a 
       }
     };
 
-    const res = await callGeminiAPI('gemini-1.5-flash-latest', payload);
+    const res = await callGeminiAPI('gemini-3.6-flash', payload);
     const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('Invalid response structure from Gemini API');
     return text.trim();

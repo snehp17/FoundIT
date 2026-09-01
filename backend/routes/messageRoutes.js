@@ -29,10 +29,19 @@ router.get('/', authenticate, async (req, res) => {
     const userIds = [...new Set(messages.flatMap(m => [m.sender_id, m.receiver_id]))];
     const itemIds = [...new Set(messages.map(m => m.item_id))];
 
-    const [{ data: profiles }, { data: itemsWithProfiles }] = await Promise.all([
+    const [profilesRes, itemsRes] = await Promise.all([
       supabase.from('profiles').select('id, name, email').in('id', userIds),
       supabase.from('items').select('id, title, status, user_id, profiles(id, name, email)').in('user_id', userIds)
     ]);
+
+    if (profilesRes.error) console.error('Profiles fetch error:', profilesRes.error);
+    if (itemsRes.error) console.error('Items fetch error:', itemsRes.error);
+
+    const profiles = profilesRes.data;
+    const itemsWithProfiles = itemsRes.data;
+    
+    console.log('User IDs to fetch:', userIds);
+    console.log('Fetched Profiles:', profiles);
 
     const profileMap = new Map();
     (profiles || []).forEach(p => {
@@ -44,11 +53,29 @@ router.get('/', authenticate, async (req, res) => {
       }
     });
 
+    // Fallback for missing profiles using auth.admin
+    for (const uid of userIds) {
+      if (!profileMap.has(uid)) {
+        try {
+          const { data: authUser } = await adminSupabase.auth.admin.getUserById(uid);
+          if (authUser && authUser.user) {
+            profileMap.set(uid, {
+              id: uid,
+              name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
+              email: authUser.user.email
+            });
+          }
+        } catch (err) {
+          console.error('Error fetching fallback user from auth.admin:', err);
+        }
+      }
+    }
+
     const itemMap = new Map((itemsWithProfiles || []).map(i => [i.id, i]));
 
     const enrichedMessages = messages.map(m => {
-      const senderObj = profileMap.get(m.sender_id) || userCache.get(m.sender_id) || { id: m.sender_id, name: req.user.id === m.sender_id ? req.user.name : 'User' };
-      const receiverObj = profileMap.get(m.receiver_id) || userCache.get(m.receiver_id) || { id: m.receiver_id, name: req.user.id === m.receiver_id ? req.user.name : 'User' };
+      const senderObj = profileMap.get(m.sender_id) || userCache.get(m.sender_id) || { id: m.sender_id, name: req.user.id === m.sender_id ? req.user.name : 'Unknown User', email: '' };
+      const receiverObj = profileMap.get(m.receiver_id) || userCache.get(m.receiver_id) || { id: m.receiver_id, name: req.user.id === m.receiver_id ? req.user.name : 'Unknown User', email: '' };
 
       return {
         ...m,
@@ -91,7 +118,7 @@ router.post('/', authenticate, async (req, res) => {
 
     if (error) throw error;
 
-    const { data: receiverProfile } = await authedSupabase
+    const { data: receiverProfile } = await supabase
       .from('profiles')
       .select('id, name')
       .eq('id', receiver_id)

@@ -65,7 +65,7 @@ router.get('/:id', authenticate, async (req, res) => {
     }
 
     // Enrich with related data
-    const [
+    let [
       { data: lostItem },
       { data: foundItem },
       { data: ownerProfile },
@@ -78,6 +78,28 @@ router.get('/:id', authenticate, async (req, res) => {
       supabase.from('profiles').select('id, name, email').eq('id', recovery.finder_id).single(),
       supabase.from('matches').select('overall_score, text_score, image_score, category_match, location_score, date_score').eq('id', recovery.match_id).single()
     ]);
+
+    // Fallback to auth.users if profiles are missing
+    if (!ownerProfile || !ownerProfile.name) {
+      const { data: authOwner } = await supabase.auth.admin.getUserById(recovery.owner_id);
+      if (authOwner && authOwner.user) {
+        ownerProfile = {
+          id: recovery.owner_id,
+          name: authOwner.user.user_metadata?.name || authOwner.user.email?.split('@')[0],
+          email: authOwner.user.email
+        };
+      }
+    }
+    if (!finderProfile || !finderProfile.name) {
+      const { data: authFinder } = await supabase.auth.admin.getUserById(recovery.finder_id);
+      if (authFinder && authFinder.user) {
+        finderProfile = {
+          id: recovery.finder_id,
+          name: authFinder.user.user_metadata?.name || authFinder.user.email?.split('@')[0],
+          email: authFinder.user.email
+        };
+      }
+    }
 
     res.json({
       ...recovery,
@@ -322,11 +344,22 @@ router.post('/scan-qr', authenticate, async (req, res) => {
       supabase.from('items').select('id, title, category, description, location, date').eq('id', recovery.lost_item_id).single()
     ]);
 
+    // Fallback to auth.users if profile is missing or incomplete
+    let ownerName = owner?.name;
+    let ownerEmail = owner?.email;
+    if (!ownerName || !ownerEmail) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(recovery.owner_id);
+      if (authUser && authUser.user) {
+        ownerName = ownerName || authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0];
+        ownerEmail = ownerEmail || authUser.user.email;
+      }
+    }
+
     res.json({
       verified: true,
       message: '✅ QR Verified! This person is the rightful owner.',
       recovery_id: recoveryId,
-      owner: { name: owner?.name, email: owner?.email },
+      owner: { name: ownerName, email: ownerEmail },
       item: { title: lostItem?.title, category: lostItem?.category, description: lostItem?.description, location: lostItem?.location, date: lostItem?.date }
     });
   } catch (err) {
