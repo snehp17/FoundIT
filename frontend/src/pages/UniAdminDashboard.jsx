@@ -5,7 +5,7 @@ import AppLayout from '../components/AppLayout'
 import api from '../api'
 import {
   Package, Users, CheckCircle2, TrendingUp, AlertTriangle,
-  BarChart2, MapPin, Clock, ChevronRight, Shield, Eye, Trash2,
+  BarChart2, MapPin, Clock, ChevronRight, Shield, Eye, Trash2, Edit2,
   Plus, X
 } from 'lucide-react'
 
@@ -28,6 +28,13 @@ export default function UniAdminDashboard() {
   const [newStudent, setNewStudent] = useState({ name: '', email: '', password: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [addError, setAddError] = useState('')
+
+  // Edit Student Modal State
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingStudent, setEditingStudent] = useState(null)
+  const [editStudentForm, setEditStudentForm] = useState({ name: '', password: '' })
+  const [isEditing, setIsEditing] = useState(false)
+  const [editError, setEditError] = useState('')
 
   const navigate = useNavigate()
   
@@ -97,6 +104,29 @@ export default function UniAdminDashboard() {
       setAddError(err.response?.data?.message || 'Failed to add student');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleEditStudentClick = (student) => {
+    setEditingStudent(student);
+    setEditStudentForm({ name: student.name, password: '' });
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const handleEditStudentSubmit = async (e) => {
+    e.preventDefault();
+    setEditError('');
+    setIsEditing(true);
+    try {
+      await api.put(`/admin/students/${editingStudent.id}`, editStudentForm);
+      setShowEditModal(false);
+      setEditingStudent(null);
+      fetchData();
+    } catch (err) {
+      setEditError(err.response?.data?.message || 'Failed to update student');
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -259,13 +289,22 @@ export default function UniAdminDashboard() {
                           <div className="text-xs text-secondary-400 truncate">{student.email}</div>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => handleDeleteStudent(student.id, student.name)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-secondary-400 hover:bg-error/10 hover:text-error transition-all"
-                        title="Remove student"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button 
+                          onClick={() => handleEditStudentClick(student)}
+                          className="p-1.5 rounded-lg text-secondary-400 hover:bg-primary/10 hover:text-primary transition-all"
+                          title="Edit student"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteStudent(student.id, student.name)}
+                          className="p-1.5 rounded-lg text-secondary-400 hover:bg-error/10 hover:text-error transition-all"
+                          title="Remove student"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -336,6 +375,63 @@ export default function UniAdminDashboard() {
                   </button>
                   <button type="submit" disabled={isSubmitting} className="btn-primary">
                     {isSubmitting ? 'Adding...' : 'Add Student'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Student Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface rounded-3xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-secondary-100">
+                <h3 className="text-lg font-bold text-secondary-900">Edit Student</h3>
+                <button onClick={() => setShowEditModal(false)} className="text-secondary-400 hover:text-secondary-600 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleEditStudentSubmit} className="p-6 space-y-4">
+                {editError && (
+                  <div className="bg-error/10 text-error text-sm p-3 rounded-lg border border-error/20">
+                    {editError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    className="input-field"
+                    value={editStudentForm.name}
+                    onChange={e => setEditStudentForm({...editStudentForm, name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">New Password (Leave blank to keep current)</label>
+                  <input
+                    type="password"
+                    minLength={8}
+                    className="input-field"
+                    placeholder="Enter new password"
+                    value={editStudentForm.password}
+                    onChange={e => setEditStudentForm({...editStudentForm, password: e.target.value})}
+                  />
+                </div>
+                <div className="pt-4 flex justify-end gap-3">
+                  <button type="button" onClick={() => setShowEditModal(false)} className="btn bg-secondary-100 text-secondary-700 hover:bg-secondary-200">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={isEditing} className="btn-primary">
+                    {isEditing ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </form>

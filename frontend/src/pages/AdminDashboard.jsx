@@ -76,6 +76,18 @@ export default function AdminDashboard() {
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState('')
 
+  // Manage University Users State
+  const [selectedUniversityForUsers, setSelectedUniversityForUsers] = useState(null)
+  const [uniUsers, setUniUsers] = useState([])
+  const [usersLoading, setUsersLoading] = useState(false)
+
+  // Edit User State
+  const [showEditUserModal, setShowEditUserModal] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [editUserForm, setEditUserForm] = useState({ name: '', password: '' })
+  const [editUserLoading, setEditUserLoading] = useState(false)
+  const [editUserError, setEditUserError] = useState('')
+
   const fetchData = async () => {
     try {
       const [uniRes, reqRes] = await Promise.all([
@@ -231,6 +243,54 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleViewUsers = async (uni) => {
+    setSelectedUniversityForUsers(uni)
+    setUsersLoading(true)
+    try {
+      const res = await api.get(`/admin/students?universityId=${uni.id}`)
+      setUniUsers(res.data || [])
+    } catch (err) {
+      console.error(err)
+      alert('Failed to fetch users')
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  const handleEditUserClick = (user) => {
+    setEditingUser(user)
+    setEditUserForm({ name: user.name, password: '' })
+    setEditUserError('')
+    setShowEditUserModal(true)
+  }
+
+  const handleEditUserSubmit = async (e) => {
+    e.preventDefault()
+    setEditUserLoading(true)
+    setEditUserError('')
+    try {
+      await api.put(`/admin/students/${editingUser.id}`, editUserForm)
+      setShowEditUserModal(false)
+      setEditingUser(null)
+      const res = await api.get(`/admin/students?universityId=${selectedUniversityForUsers.id}`)
+      setUniUsers(res.data || [])
+    } catch (err) {
+      setEditUserError(err.response?.data?.message || 'Failed to update user')
+    } finally {
+      setEditUserLoading(false)
+    }
+  }
+
+  const handleDeleteUser = async (user) => {
+    if (!window.confirm(`Are you sure you want to delete ${user.name}?`)) return
+    try {
+      await api.delete(`/admin/students/${user.id}`)
+      setUniUsers(uniUsers.filter(u => u.id !== user.id))
+    } catch (err) {
+      alert('Failed to delete user')
+    }
+  }
+
   const handleAcceptClick = (request) => {
     setSelectedRequest(request)
     setModalForm({
@@ -380,6 +440,9 @@ export default function AdminDashboard() {
                         <div className="text-xs text-secondary-500 truncate">Domain: {uni.allowed_domain}</div>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => handleViewUsers(uni)} className="p-1.5 text-secondary-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="View Users">
+                          <Users className="w-4 h-4" />
+                        </button>
                         <button onClick={() => handleMessageUniAdmin(uni)} className="p-1.5 text-secondary-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Message Admin">
                           <MessageSquare className="w-4 h-4" />
                         </button>
@@ -811,6 +874,77 @@ export default function AdminDashboard() {
         )}
 
       </div>
+
+        {/* View Users Modal */}
+        {selectedUniversityForUsers && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8">
+              <div className="px-6 py-4 border-b border-secondary-100 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md rounded-t-3xl z-10">
+                <h3 className="font-bold text-secondary-900">Users - {selectedUniversityForUsers.name}</h3>
+                <button onClick={() => setSelectedUniversityForUsers(null)} className="p-1 hover:bg-secondary-200 rounded-lg"><X className="w-5 h-5 text-secondary-500" /></button>
+              </div>
+              <div className="p-6">
+                {usersLoading ? (
+                  <p className="text-center text-secondary-400 py-8">Loading users...</p>
+                ) : uniUsers.length > 0 ? (
+                  <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                    {uniUsers.map((user, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-secondary-100 hover:border-primary-200 transition-colors group">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-secondary-100 flex items-center justify-center text-secondary-600 font-medium flex-shrink-0">
+                            {user.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-secondary-900 truncate">{user.name}</div>
+                            <div className="text-xs text-secondary-400 truncate">{user.email}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => handleEditUserClick(user)} className="p-1.5 rounded-lg text-secondary-400 hover:bg-primary/10 hover:text-primary transition-all" title="Edit user">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteUser(user)} className="p-1.5 rounded-lg text-secondary-400 hover:bg-error/10 hover:text-error transition-all" title="Remove user">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-secondary-400 py-8">No users found for this university.</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Edit User Modal */}
+        {showEditUserModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="px-6 py-4 border-b border-secondary-100 flex items-center justify-between bg-secondary-50/50">
+                <h3 className="font-bold text-secondary-900">Edit User</h3>
+                <button onClick={() => setShowEditUserModal(false)} className="p-1 hover:bg-secondary-200 rounded-lg"><X className="w-5 h-5 text-secondary-500" /></button>
+              </div>
+              <form onSubmit={handleEditUserSubmit} className="p-6 space-y-4">
+                {editUserError && <div className="p-3 bg-error/10 text-error text-sm rounded-xl border border-error/20">{editUserError}</div>}
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Full Name</label>
+                  <input type="text" required className="input-field w-full" value={editUserForm.name} onChange={e => setEditUserForm({...editUserForm, name: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">New Password (Leave blank to keep current)</label>
+                  <input type="password" minLength={8} className="input-field w-full" placeholder="Enter new password" value={editUserForm.password} onChange={e => setEditUserForm({...editUserForm, password: e.target.value})} />
+                </div>
+                <div className="pt-4 flex gap-3">
+                  <button type="button" onClick={() => setShowEditUserModal(false)} className="btn-secondary flex-1">Cancel</button>
+                  <button type="submit" disabled={editUserLoading} className="btn-primary flex-1">{editUserLoading ? 'Saving...' : 'Save Changes'}</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
     </AppLayout>
   )
 }

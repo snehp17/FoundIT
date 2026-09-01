@@ -349,6 +349,53 @@ router.delete('/students/:id', authenticate, authorize(['university_admin', 'sup
   }
 });
 
+// Update a student (name and/or password)
+router.put('/students/:id', authenticate, authorize(['university_admin', 'super_admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, password } = req.body;
+    
+    // First, verify the student belongs to the admin's university
+    const { data: student, error: fetchError } = await supabase
+      .from('profiles')
+      .select('university_id')
+      .eq('id', id)
+      .single();
+      
+    if (fetchError || !student) return res.status(404).json({ message: 'Student not found' });
+    
+    if (req.user.role === 'university_admin' && student.university_id !== req.user.university_id) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    const updateData = {};
+    if (name) {
+      updateData.user_metadata = { name };
+    }
+    if (password) {
+      updateData.password = password;
+    }
+
+    // Update user in Supabase Auth
+    const { error: updateError } = await supabase.auth.admin.updateUserById(id, updateData);
+    if (updateError) throw updateError;
+
+    // Update name in public.profiles if name was provided
+    if (name) {
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ name })
+        .eq('id', id);
+      if (profileUpdateError) throw profileUpdateError;
+    }
+
+    res.json({ message: 'Student updated successfully' });
+  } catch (error) {
+    console.error('Error updating student:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Delete an item
 router.delete('/items/:id', authenticate, authorize(['university_admin', 'super_admin']), async (req, res) => {
   try {
