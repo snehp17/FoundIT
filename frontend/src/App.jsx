@@ -21,6 +21,8 @@ import PartnerUniversity from './pages/PartnerUniversity'
 import UniAdminDashboard from './pages/UniAdminDashboard'
 import BlogPostPage from './pages/BlogPostPage'
 import JobDetailPage from './pages/JobDetailPage'
+import ResetPassword from './pages/ResetPassword'
+import GoogleCallback from './pages/GoogleCallback'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -30,6 +32,8 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/google-callback" element={<GoogleCallback />} />
         <Route path="/select-university" element={<SelectUniversity />} />
         <Route path="/partner" element={<PartnerUniversity />} />
         <Route path="/blog/:id" element={<BlogPostPage />} />

@@ -7,6 +7,11 @@ router.post("/register", async (req, res) => {
   try {
     const { name, email, password, universityId } = req.body;
 
+    const strongPasswordRegex = /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!strongPasswordRegex.test(password)) {
+      return res.status(400).json({ message: "Weak password" });
+    }
+
     if (!universityId) {
       return res.status(400).json({ message: "University ID is required" });
     }
@@ -205,6 +210,153 @@ router.get("/universities", async (req, res) => {
   } catch (error) {
     console.error("Universities fetch error:", error);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// FORGOT PASSWORD
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${req.headers.origin}/reset-password`,
+    });
+
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.json({ message: "Password reset link sent to your email" });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// RESET PASSWORD
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, type, password } = req.body;
+    
+    const strongPasswordRegex = /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!strongPasswordRegex.test(password)) {
+      return res.status(400).json({ message: "Weak password" });
+    }
+
+    let userId;
+    
+    if (type === 'code') {
+      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(token);
+      if (sessionError || !sessionData?.session?.user) {
+         return res.status(401).json({ message: "Invalid or expired reset code" });
+      }
+      userId = sessionData.session.user.id;
+    } else {
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !userData.user) {
+        return res.status(401).json({ message: "Invalid or expired token" });
+      }
+      userId = userData.user.id;
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      password: password
+    });
+
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// GOOGLE OAUTH INIT
+router.get("/google", async (req, res) => {
+  const frontendUrl = req.headers.origin || req.headers.referer?.slice(0, -1) || 'http://localhost:5173';
+  
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${frontendUrl}/google-callback`, 
+    },
+  });
+
+  if (error) {
+    return res.status(500).json({ message: error.message });
+  }
+
+  if (data.url) {
+    res.redirect(data.url);
+  } else {
+    res.status(500).json({ message: "Could not initialize Google OAuth" });
+  }
+});
+
+// GOOGLE OAUTH CALLBACK
+router.post("/google-callback", async (req, res) => {
+  try {
+    const { access_token } = req.body;
+    const { data: userData, error: userError } = await supabase.auth.getUser(access_token);
+    
+    if (userError || !userData.user) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+
+    const userId = userData.user.id;
+    
+    // Check if profile exists
+    let { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*, universities(name)')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!profile) {
+      // Create new profile for google user
+      const name = userData.user.user_metadata?.full_name || userData.user.email.split('@')[0];
+      const email = userData.user.email;
+      
+      const { data: uniList } = await supabase.from('universities').select('id, name').limit(1);
+      const defaultUniId = uniList && uniList.length > 0 ? uniList[0].id : null;
+      
+      const { data: newProfile, error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          name: name,
+          email: email,
+          role: 'student',
+          university_id: defaultUniId
+        })
+        .select('*, universities(name)')
+        .single();
+        
+      if (insertError) {
+         return res.status(500).json({ message: "Error creating profile: " + insertError.message });
+      }
+      profile = newProfile;
+    }
+
+    res.json({
+      message: "Login Successful",
+      token: access_token,
+      id: userId,
+      role: profile.role,
+      name: profile.name,
+      universityId: profile.university_id,
+      university: profile.universities ? (Array.isArray(profile.universities) ? profile.universities[0]?.name : profile.universities.name) : null
+    });
+
+  } catch (error) {
+     console.error("Google callback error", error);
+     res.status(500).json({ message: "Server error" });
   }
 });
 

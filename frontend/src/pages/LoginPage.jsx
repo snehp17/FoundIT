@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [universities, setUniversities] = useState([])
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectTo = searchParams.get('redirect') || null
@@ -40,6 +41,7 @@ export default function LoginPage() {
       universityId: universities.length > 0 ? universities[0].id : '' 
     })
     setErrorMsg('')
+    setSuccessMsg('')
   }
 
   useEffect(() => {
@@ -60,6 +62,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrorMsg('')
+    setSuccessMsg('')
     setLoading(true)
 
     try {
@@ -85,6 +88,13 @@ export default function LoginPage() {
         }
       } else {
         // Register
+        const strongPasswordRegex = /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+        if (!strongPasswordRegex.test(form.password)) {
+          setErrorMsg("Weak password");
+          setLoading(false);
+          return;
+        }
+
         await api.post('/auth/register', {
           name: form.name,
           email: form.email,
@@ -93,14 +103,37 @@ export default function LoginPage() {
         });
         
         // Auto-login or redirect
-        alert("Registration successful! Please login.");
+        setSuccessMsg("Registration successful! Please login.");
         handleTabSwitch('login');
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.response?.data?.message || 'Something went wrong');
+      let msg = err.response?.data?.message || 'Something went wrong';
+      if (typeof msg === 'object') msg = JSON.stringify(msg);
+      setErrorMsg(msg);
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    if (!form.email) {
+      setErrorMsg("Please enter your email to reset password.");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      await api.post('/auth/forgot-password', { email: form.email });
+      setSuccessMsg("Password reset link sent to your email.");
+    } catch (err) {
+      console.error(err);
+      let msg = err.response?.data?.message || 'Something went wrong';
+      if (typeof msg === 'object') msg = JSON.stringify(msg);
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -215,13 +248,19 @@ export default function LoginPage() {
           </div>
 
           {errorMsg && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-error/10 border border-error/20 text-error rounded-lg text-sm">
               {errorMsg}
             </div>
           )}
 
+          {successMsg && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg text-sm">
+              {successMsg}
+            </div>
+          )}
+
           {/* Google Button */}
-          <button className="w-full flex items-center justify-center gap-3 py-3 border border-secondary-200 rounded-2xl hover:bg-secondary-50 transition-all duration-200 mb-6 font-medium text-secondary-700">
+          <button type="button" onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'} className="w-full flex items-center justify-center gap-3 py-3 border border-secondary-200 rounded-2xl hover:bg-secondary-50 transition-all duration-200 mb-6 font-medium text-secondary-700">
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -340,7 +379,7 @@ export default function LoginPage() {
 
               {tab === 'login' && (
                 <div className="flex justify-end">
-                  <button type="button" className="text-sm text-primary hover:text-primary-700 font-medium">
+                  <button type="button" onClick={handleForgotPassword} disabled={loading} className="text-sm text-primary hover:text-primary-700 font-medium">
                     Forgot password?
                   </button>
                 </div>
