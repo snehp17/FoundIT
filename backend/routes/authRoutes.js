@@ -222,7 +222,7 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${req.headers.origin}/reset-password`,
+      redirectTo: "https://black-forest-0c46fe800.azurestaticapps.net/reset-password",
     });
 
     if (error) {
