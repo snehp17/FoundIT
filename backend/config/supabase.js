@@ -1,15 +1,25 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://fnspjghibqohshfulnah.supabase.co';
-// We use the service key in the backend to bypass RLS for admin operations and secure data access
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_nFgYIjMr4IZIhtUODt8vVw_Lwtx1yoj'; 
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+const anonKey = process.env.SUPABASE_ANON_KEY;
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
-  console.warn("Notice: Using fallback SUPABASE_URL / SUPABASE_KEY.");
+if (!supabaseUrl || !serviceKey || !anonKey) {
+  console.warn("Warning: SUPABASE_URL, SUPABASE_SERVICE_KEY, or SUPABASE_ANON_KEY is missing from environment variables.");
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey, {
+// Admin client — use for DB queries, user management, profile operations
+const supabase = createClient(supabaseUrl || '', serviceKey || '', {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+
+// Auth client — use ONLY for email auth flows (forgot-password, OAuth redirects)
+// Must use anon key so Supabase can send emails properly
+const supabaseAuth = createClient(supabaseUrl || '', anonKey || '', {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -17,3 +27,4 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 });
 
 module.exports = supabase;
+module.exports.supabaseAuth = supabaseAuth;

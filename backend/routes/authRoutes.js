@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const supabase = require("../config/supabase");
+const { supabaseAuth } = require("../config/supabase"); // anon key — for email auth flows
 
 // USER REGISTRATION
 router.post("/register", async (req, res) => {
@@ -221,15 +222,30 @@ router.post("/forgot-password", async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://black-forest-0c46fe800.azurestaticapps.net/reset-password",
+    // First check the user actually exists in our system
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
+
+    if (!profile) {
+      // Don't reveal if email exists or not (security best practice)
+      return res.json({ message: "If that email is registered, a reset link has been sent." });
+    }
+
+    // Use supabaseAuth (anon key) — resetPasswordForEmail does NOT work with the service role key
+    const frontendUrl = process.env.FRONTEND_URL || 'https://black-forest-0c46fe800.azurestaticapps.net';
+    const { error } = await supabaseAuth.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
+      redirectTo: `${frontendUrl}/reset-password`,
     });
 
     if (error) {
+      console.error("Supabase resetPasswordForEmail error:", error);
       return res.status(400).json({ message: error.message });
     }
 
-    res.json({ message: "Password reset link sent to your email" });
+    res.json({ message: "If that email is registered, a reset link has been sent." });
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({ message: "Server error" });
@@ -280,11 +296,12 @@ router.post("/reset-password", async (req, res) => {
 // GOOGLE OAUTH INIT
 router.get("/google", async (req, res) => {
   const frontendUrl = req.headers.origin || req.headers.referer?.slice(0, -1) || 'http://localhost:5173';
-  
-  const { data, error } = await supabase.auth.signInWithOAuth({
+
+  // Use supabaseAuth (anon key) — signInWithOAuth does NOT work with the service role key
+  const { data, error } = await supabaseAuth.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${frontendUrl}/google-callback`, 
+      redirectTo: `${frontendUrl}/google-callback`,
     },
   });
 
@@ -310,22 +327,48 @@ router.post("/google-callback", async (req, res) => {
     }
 
     const userId = userData.user.id;
-    
-    // Check if profile exists
-    let { data: profile, error: profileError } = await supabase
+    const email = userData.user.email;
+    const emailDomain = "@" + email.split("@")[1];
+
+    // Check if profile already exists (returning user)
+    let { data: profile } = await supabase
       .from('profiles')
       .select('*, universities(name)')
       .eq('id', userId)
       .maybeSingle();
 
     if (!profile) {
-      // Create new profile for google user
-      const name = userData.user.user_metadata?.full_name || userData.user.email.split('@')[0];
-      const email = userData.user.email;
-      
-      const { data: uniList } = await supabase.from('universities').select('id, name').limit(1);
-      const defaultUniId = uniList && uniList.length > 0 ? uniList[0].id : null;
-      
+      // New Google user — validate their email domain against all active universities
+      const { data: universities, error: uniError } = await supabase
+        .from('universities')
+        .select('id, name, allowed_domain, allow_personal_emails')
+        .eq('status', 'Active');
+
+      if (uniError) {
+        return res.status(500).json({ message: "Could not fetch university list" });
+      }
+
+      // Find a university whose allowed_domain matches OR that allows personal emails
+      const matchedUni = universities.find(uni => {
+        if (uni.allow_personal_emails) return true; // any domain accepted
+        return uni.allowed_domain &&
+          uni.allowed_domain.toLowerCase() === emailDomain.toLowerCase();
+      });
+
+      if (!matchedUni) {
+        // Build a helpful list of accepted domains
+        const domainList = universities
+          .filter(u => !u.allow_personal_emails && u.allowed_domain)
+          .map(u => u.allowed_domain)
+          .join(', ');
+        return res.status(403).json({
+          message: `Your Google account email (${email}) is not from a registered university domain. Accepted domains: ${domainList || 'none configured'}. Please use your official university email to sign in with Google.`
+        });
+      }
+
+      // Create new profile, assigning the matched university
+      const name = userData.user.user_metadata?.full_name || email.split('@')[0];
+
       const { data: newProfile, error: insertError } = await supabase
         .from('profiles')
         .insert({
@@ -333,13 +376,13 @@ router.post("/google-callback", async (req, res) => {
           name: name,
           email: email,
           role: 'student',
-          university_id: defaultUniId
+          university_id: matchedUni.id
         })
         .select('*, universities(name)')
         .single();
-        
+
       if (insertError) {
-         return res.status(500).json({ message: "Error creating profile: " + insertError.message });
+        return res.status(500).json({ message: "Error creating profile: " + insertError.message });
       }
       profile = newProfile;
     }
@@ -351,12 +394,14 @@ router.post("/google-callback", async (req, res) => {
       role: profile.role,
       name: profile.name,
       universityId: profile.university_id,
-      university: profile.universities ? (Array.isArray(profile.universities) ? profile.universities[0]?.name : profile.universities.name) : null
+      university: profile.universities
+        ? (Array.isArray(profile.universities) ? profile.universities[0]?.name : profile.universities.name)
+        : null
     });
 
   } catch (error) {
-     console.error("Google callback error", error);
-     res.status(500).json({ message: "Server error" });
+    console.error("Google callback error", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
