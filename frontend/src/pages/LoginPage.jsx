@@ -312,6 +312,7 @@ export default function LoginPage() {
                   className="input-field pl-11"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  autoComplete="off"
                   required
                 />
               </div>
@@ -354,6 +355,7 @@ export default function LoginPage() {
                   className="input-field pl-11 pr-11"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  autoComplete="off"
                   required
                 />
                 <button
