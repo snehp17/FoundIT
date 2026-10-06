@@ -346,9 +346,20 @@ router.post("/google-callback", async (req, res) => {
     // Check if profile already exists (returning user)
     let { data: profile } = await supabase
       .from('profiles')
-      .select('*, universities(name)')
+      .select('*, universities(name, allowed_domain, allow_personal_emails)')
       .eq('id', userId)
       .maybeSingle();
+
+    if (profile && profile.universities) {
+      const uni = Array.isArray(profile.universities) ? profile.universities[0] : profile.universities;
+      if (uni && !uni.allow_personal_emails && uni.allowed_domain) {
+        if (uni.allowed_domain.toLowerCase() !== emailDomain.toLowerCase()) {
+          return res.status(403).json({
+            message: `Access denied. Your Google email (${email}) does not match your university's domain (${uni.allowed_domain}). Please use your official university email.`
+          });
+        }
+      }
+    }
 
     if (!profile) {
       // New Google user — validate their email domain against all active universities
