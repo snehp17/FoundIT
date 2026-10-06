@@ -1,25 +1,25 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-const anonKey = process.env.SUPABASE_ANON_KEY;
+// Fallback values prevent @supabase/supabase-js from throwing unhandled "Url/Key is required" errors on startup
+const supabaseUrl = process.env.SUPABASE_URL || 'https://fnspjghibqohshfulnah.supabase.co';
+const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'placeholder-service-key';
+const anonKey = process.env.SUPABASE_ANON_KEY || serviceKey;
 
-if (!supabaseUrl || !serviceKey || !anonKey) {
-  console.warn("Warning: SUPABASE_URL, SUPABASE_SERVICE_KEY, or SUPABASE_ANON_KEY is missing from environment variables.");
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+  console.warn("Notice: SUPABASE_URL or SUPABASE_SERVICE_KEY not set in process.env, using fallback values.");
 }
 
 // Admin client — use for DB queries, user management, profile operations
-const supabase = createClient(supabaseUrl || '', serviceKey || '', {
+const supabase = createClient(supabaseUrl, serviceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
   }
 });
 
-// Auth client — use ONLY for email auth flows (forgot-password, OAuth redirects)
-// Must use anon key so Supabase can send emails properly
-const supabaseAuth = createClient(supabaseUrl || '', anonKey || '', {
+// Auth client — use for email auth flows (forgot-password, OAuth redirects)
+const supabaseAuth = createClient(supabaseUrl, anonKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false

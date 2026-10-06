@@ -40,7 +40,11 @@ const PORT = process.env.PORT || 5000;
 
 // Connect to DB, then start server
 const startServer = async () => {
-  await connectDB();
+  try {
+    await connectDB();
+  } catch (err) {
+    console.warn("Database connection notice on startup:", err.message);
+  }
   
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

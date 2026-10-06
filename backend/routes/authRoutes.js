@@ -295,24 +295,37 @@ router.post("/reset-password", async (req, res) => {
 
 // GOOGLE OAUTH INIT
 router.get("/google", async (req, res) => {
-  const frontendUrl = req.headers.origin || req.headers.referer?.slice(0, -1) || 'http://localhost:5173';
+  try {
+    const rawReferer = req.headers.referer || req.headers.origin || '';
+    let frontendUrl = process.env.FRONTEND_URL || 'https://black-forest-0c46fe800.azurestaticapps.net';
+    if (rawReferer) {
+      try {
+        const parsed = new URL(rawReferer);
+        frontendUrl = parsed.origin;
+      } catch (e) {}
+    }
 
-  // Use supabaseAuth (anon key) — signInWithOAuth does NOT work with the service role key
-  const { data, error } = await supabaseAuth.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${frontendUrl}/google-callback`,
-    },
-  });
+    const clientToUse = supabaseAuth || supabase;
+    const { data, error } = await clientToUse.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${frontendUrl}/google-callback`,
+      },
+    });
 
-  if (error) {
-    return res.status(500).json({ message: error.message });
-  }
+    if (error) {
+      console.error("Google OAuth init error:", error);
+      return res.status(500).json({ message: error.message });
+    }
 
-  if (data.url) {
-    res.redirect(data.url);
-  } else {
-    res.status(500).json({ message: "Could not initialize Google OAuth" });
+    if (data && data.url) {
+      return res.redirect(data.url);
+    } else {
+      return res.status(500).json({ message: "Could not initialize Google OAuth" });
+    }
+  } catch (err) {
+    console.error("Google OAuth endpoint exception:", err);
+    return res.status(500).json({ message: "Internal server error during Google OAuth initialization" });
   }
 });
 
