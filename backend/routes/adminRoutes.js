@@ -263,17 +263,35 @@ router.get('/students', authenticate, authorize(['university_admin', 'super_admi
       return res.status(400).json({ message: 'universityId is required' });
     }
 
-    const { data: students, error } = await supabase
-      .from('profiles')
-      .select('id, name, email, phone, department, roll_number, batch, created_at')
-      .eq('university_id', universityId)
-      .eq('role', 'student')
-      .order('name')
-      .range(0, 9999);
+    let allStudents = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (error) throw error;
+    while (hasMore) {
+      const { data: students, error } = await supabase
+        .from('profiles')
+        .select('id, name, email, phone, department, roll_number, batch, created_at')
+        .eq('university_id', universityId)
+        .eq('role', 'student')
+        .order('name')
+        .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    res.json(students || []);
+      if (error) throw error;
+
+      if (students && students.length > 0) {
+        allStudents = allStudents.concat(students);
+        if (students.length < pageSize) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+
+    res.json(allStudents);
   } catch (error) {
     console.error('Error fetching students:', error);
     res.status(500).json({ message: 'Server error' });
