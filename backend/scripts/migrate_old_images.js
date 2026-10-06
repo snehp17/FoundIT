@@ -100,5 +100,5 @@ async function migrateImages() {
 
   console.log("🎉 Migration complete! Old images are now on Supabase.");
 }
-
+ 
 migrateImages();
