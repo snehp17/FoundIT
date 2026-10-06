@@ -15,12 +15,21 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Extract token on mount to prevent loss from navigation/reloads
+    // Extract token or error params on mount
     const hash = window.location.hash;
     const hashParams = new URLSearchParams(hash.substring(1));
     const search = window.location.search;
     const queryParams = new URLSearchParams(search);
-    
+
+    const errCode = hashParams.get('error_code') || queryParams.get('error_code');
+    const errDesc = hashParams.get('error_description') || queryParams.get('error_description');
+
+    if (errCode || errDesc) {
+      const readable = errDesc ? decodeURIComponent(errDesc.replace(/\+/g, ' ')) : "The password reset link has expired or is invalid.";
+      setErrorMsg(`${readable} Please request a new password reset link from the login page.`);
+      return;
+    }
+
     const at = hashParams.get('access_token');
     const c = queryParams.get('code');
     
