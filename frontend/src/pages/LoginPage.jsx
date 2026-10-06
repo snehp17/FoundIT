@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Compass, ArrowRight, Eye, EyeOff, Mail, Lock, User, Phone, CheckCircle2, Zap } from 'lucide-react'
-import api from '../api'
+import api, { getApiBaseUrl } from '../api'
 
 export default function LoginPage() {
   const [tab, setTab] = useState('login')
@@ -261,7 +261,7 @@ export default function LoginPage() {
 
           {/* Google Button */}
           <button type="button" onClick={() => {
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            const baseUrl = getApiBaseUrl();
             window.location.href = `${baseUrl}/auth/google`;
           }} className="w-full flex items-center justify-center gap-3 py-3 border border-secondary-200 rounded-2xl hover:bg-secondary-50 transition-all duration-200 mb-6 font-medium text-secondary-700">
             <svg className="w-5 h-5" viewBox="0 0 24 24">

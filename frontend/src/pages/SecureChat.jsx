@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { useSearchParams } from 'react-router-dom'
 import AppLayout from '../components/AppLayout'
 import { Send, Paperclip, CheckCheck, Shield, MoreVertical, Search } from 'lucide-react'
-import api from '../api'
+import api, { getBackendOrigin } from '../api'
 
 export default function SecureChat() {
   const currentUser = JSON.parse(localStorage.getItem('user')) || {}
@@ -18,7 +18,7 @@ export default function SecureChat() {
   const getImageUrl = (img) => {
     if (!img) return '';
     if (img.startsWith('http')) return img;
-    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    const base = getBackendOrigin();
     return `${base}${img}`;
   };
 

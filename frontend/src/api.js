@@ -1,6 +1,26 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  const isLocal = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+  );
+  if (isLocal) {
+    return envUrl || 'http://localhost:5000/api';
+  }
+  // Deployed production environment: fallback to Azure App Service backend if envUrl is missing or points to localhost
+  if (!envUrl || envUrl.includes('localhost')) {
+    return 'https://foundit-rg-ftczafanfvcmeqhv.eastasia-01.azurewebsites.net/api';
+  }
+  return envUrl;
+};
+
+export const getBackendOrigin = () => {
+  return getApiBaseUrl().replace(/\/api\/?$/, '');
+};
+
+const API_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_URL,
@@ -68,7 +88,8 @@ api.interceptors.response.use(
         }
 
         // Call the new /auth/refresh endpoint
-        const { data } = await axios.post(`${API_URL}/auth/refresh`, {
+        const currentApiUrl = getApiBaseUrl();
+        const { data } = await axios.post(`${currentApiUrl}/auth/refresh`, {
           refresh_token: user.refresh_token
         });
 

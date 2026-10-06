@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import AppLayout from '../components/AppLayout'
-import api from '../api'
+import api, { getBackendOrigin } from '../api'
 import {
   Sparkles, CheckCircle2, XCircle, MessageSquare, ChevronRight,
   MapPin, Calendar, Tag, Zap, AlertCircle, RefreshCw, Shield,
@@ -60,7 +60,7 @@ function MatchCard({ match, onAccept, onReject, onViewTracking }) {
   const getImageUrl = (img) => {
     if (!img) return '';
     if (img.startsWith('http')) return img;
-    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    const base = getBackendOrigin();
     return `${base}/uploads/${img}`;
   };
 

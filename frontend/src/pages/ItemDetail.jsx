@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
-import api from '../api'
+import api, { getBackendOrigin } from '../api'
 import {
   MapPin, Clock, Tag, Brain, ShieldCheck, MessageSquare,
   ChevronRight, CheckCircle2, Circle, ArrowRight, Share2, Flag, Loader
@@ -19,7 +19,7 @@ export default function ItemDetail() {
   const getImageUrl = (img) => {
     if (!img) return '';
     if (img.startsWith('http')) return img;
-    const base = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000';
+    const base = getBackendOrigin();
     return `${base}/uploads/${img}`;
   };
 
