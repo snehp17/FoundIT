@@ -268,7 +268,8 @@ router.get('/students', authenticate, authorize(['university_admin', 'super_admi
       .select('id, name, email, phone, department, roll_number, batch, created_at')
       .eq('university_id', universityId)
       .eq('role', 'student')
-      .order('name');
+      .order('name')
+      .range(0, 9999);
 
     if (error) throw error;
 
