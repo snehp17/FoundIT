@@ -1,13 +1,12 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-// Fallback values prevent @supabase/supabase-js from throwing unhandled "Url/Key is required" errors on startup
 const supabaseUrl = process.env.SUPABASE_URL || 'https://fnspjghibqohshfulnah.supabase.co';
-const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'placeholder-service-key';
-const anonKey = process.env.SUPABASE_ANON_KEY || serviceKey;
+const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_nFgYIjMr4IZIhtUODt8vVw_Lwtx1yoj';
+const anonKey = process.env.SUPABASE_ANON_KEY || 'sb_publishable_nFgYIjMr4IZIhtUODt8vVw_Lwtx1yoj';
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
-  console.warn("Notice: SUPABASE_URL or SUPABASE_SERVICE_KEY not set in process.env, using fallback values.");
+  console.warn("Notice: SUPABASE_URL or SUPABASE_SERVICE_KEY not set in process.env, using default publishable key fallback.");
 }
 
 // Admin client — use for DB queries, user management, profile operations
