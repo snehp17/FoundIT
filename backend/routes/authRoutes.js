@@ -417,6 +417,10 @@ router.post("/google-callback", async (req, res) => {
       id: userId,
       role: profile.role,
       name: profile.name,
+      phone: profile.phone,
+      department: profile.department,
+      roll_number: profile.roll_number,
+      batch: profile.batch,
       universityId: profile.university_id,
       university: profile.universities
         ? (Array.isArray(profile.universities) ? profile.universities[0]?.name : profile.universities.name)
@@ -425,6 +429,95 @@ router.post("/google-callback", async (req, res) => {
 
   } catch (error) {
     console.error("Google callback error", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+const { authenticate } = require('../middleware/auth');
+
+// GET CURRENT USER PROFILE
+router.get("/profile", authenticate, async (req, res) => {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*, universities(name)')
+      .eq('id', req.user.id)
+      .maybeSingle();
+
+    if (error || !profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    res.json({
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role,
+      phone: profile.phone || '',
+      department: profile.department || '',
+      roll_number: profile.roll_number || '',
+      batch: profile.batch || '',
+      universityId: profile.university_id,
+      university: profile.universities
+        ? (Array.isArray(profile.universities) ? profile.universities[0]?.name : profile.universities.name)
+        : null
+    });
+  } catch (error) {
+    console.error("Fetch profile error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// UPDATE USER PROFILE DETAILS
+router.put("/profile", authenticate, async (req, res) => {
+  try {
+    const { name, phone, department, roll_number, batch } = req.body;
+
+    const { data: updated, error } = await supabase
+      .from('profiles')
+      .update({
+        ...(name && { name }),
+        ...(phone !== undefined && { phone }),
+        ...(department !== undefined && { department }),
+        ...(roll_number !== undefined && { roll_number }),
+        ...(batch !== undefined && { batch }),
+      })
+      .eq('id', req.user.id)
+      .select('*, universities(name)')
+      .single();
+
+    if (error) {
+      return res.status(400).json({ message: "Failed to update profile: " + error.message });
+    }
+
+    res.json({ message: "Profile updated successfully", profile: updated });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// CHANGE PASSWORD FROM ACCOUNT SETTINGS
+router.post("/change-password", authenticate, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+
+    const strongPasswordRegex = /^(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+    if (!newPassword || !strongPasswordRegex.test(newPassword)) {
+      return res.status(400).json({ message: "Password must be at least 8 characters and include a special character." });
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(req.user.id, {
+      password: newPassword
+    });
+
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Change password error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

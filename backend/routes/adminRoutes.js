@@ -3,6 +3,11 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate, authorize } = require('../middleware/auth');
 
+router.use((req, res, next) => {
+  console.log("ADMIN ROUTER DEBUG:", req.method, req.path);
+  next();
+});
+
 // ==========================================
 // SUPER ADMIN ROUTES
 // ==========================================
@@ -249,10 +254,9 @@ router.post('/accept-request/:id', authenticate, authorize('super_admin'), async
 // UNIVERSITY ADMIN ROUTES
 // ==========================================
 
-// Get all students for the university
+// Get all students for the university with full audit details
 router.get('/students', authenticate, authorize(['university_admin', 'super_admin']), async (req, res) => {
   try {
-    // If super admin, they might pass universityId in query. If uni admin, use from token.
     const universityId = req.user.role === 'university_admin' ? req.user.university_id : req.query.universityId;
 
     if (!universityId) {
@@ -261,7 +265,7 @@ router.get('/students', authenticate, authorize(['university_admin', 'super_admi
 
     const { data: students, error } = await supabase
       .from('profiles')
-      .select('id, name, email')
+      .select('id, name, email, phone, department, roll_number, batch, created_at')
       .eq('university_id', universityId)
       .eq('role', 'student')
       .order('name');
@@ -278,7 +282,7 @@ router.get('/students', authenticate, authorize(['university_admin', 'super_admi
 // Add a student to the university
 router.post('/students', authenticate, authorize(['university_admin', 'super_admin']), async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, phone, department, roll_number, batch } = req.body;
     const universityId = req.user.role === 'university_admin' ? req.user.university_id : req.body.universityId;
 
     if (!universityId) return res.status(400).json({ message: 'universityId is required' });
@@ -289,7 +293,7 @@ router.post('/students', authenticate, authorize(['university_admin', 'super_adm
       email: email,
       password: password,
       email_confirm: true,
-      user_metadata: { name, role: 'student', university_id: universityId }
+      user_metadata: { name, role: 'student', university_id: universityId, department, roll_number, batch }
     });
 
     if (authError) return res.status(400).json({ message: authError.message });
@@ -302,7 +306,11 @@ router.post('/students', authenticate, authorize(['university_admin', 'super_adm
         name,
         email,
         role: 'student',
-        university_id: universityId
+        university_id: universityId,
+        phone: phone || null,
+        department: department || null,
+        roll_number: roll_number || null,
+        batch: batch || null
       }])
       .select()
       .single();
@@ -349,11 +357,11 @@ router.delete('/students/:id', authenticate, authorize(['university_admin', 'sup
   }
 });
 
-// Update a student (name and/or password)
+// Update a student (name, phone, department, roll_number, batch, and/or password)
 router.put('/students/:id', authenticate, authorize(['university_admin', 'super_admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, password } = req.body;
+    const { name, password, phone, department, roll_number, batch } = req.body;
     
     // First, verify the student belongs to the admin's university
     const { data: student, error: fetchError } = await supabase
@@ -369,22 +377,26 @@ router.put('/students/:id', authenticate, authorize(['university_admin', 'super_
     }
 
     const updateData = {};
-    if (name) {
-      updateData.user_metadata = { name };
-    }
-    if (password) {
-      updateData.password = password;
+    if (name) updateData.user_metadata = { name };
+    if (password) updateData.password = password;
+
+    if (Object.keys(updateData).length > 0) {
+      const { error: updateError } = await supabase.auth.admin.updateUserById(id, updateData);
+      if (updateError) throw updateError;
     }
 
-    // Update user in Supabase Auth
-    const { error: updateError } = await supabase.auth.admin.updateUserById(id, updateData);
-    if (updateError) throw updateError;
+    const profileUpdates = {
+      ...(name && { name }),
+      ...(phone !== undefined && { phone }),
+      ...(department !== undefined && { department }),
+      ...(roll_number !== undefined && { roll_number }),
+      ...(batch !== undefined && { batch }),
+    };
 
-    // Update name in public.profiles if name was provided
-    if (name) {
+    if (Object.keys(profileUpdates).length > 0) {
       const { error: profileUpdateError } = await supabase
         .from('profiles')
-        .update({ name })
+        .update(profileUpdates)
         .eq('id', id);
       if (profileUpdateError) throw profileUpdateError;
     }
@@ -392,7 +404,7 @@ router.put('/students/:id', authenticate, authorize(['university_admin', 'super_
     res.json({ message: 'Student updated successfully' });
   } catch (error) {
     console.error('Error updating student:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(400).json({ message: error.message || 'Failed to update user' });
   }
 });
 
