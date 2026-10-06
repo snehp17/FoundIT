@@ -25,12 +25,27 @@ import ResetPassword from './pages/ResetPassword'
 import GoogleCallback from './pages/GoogleCallback'
 import ProtectedRoute from './components/ProtectedRoute'
 
+function RootRouteHandler() {
+  const hash = window.location.hash;
+  const search = window.location.search;
+  if (
+    hash.includes('access_token=') ||
+    hash.includes('type=recovery') ||
+    hash.includes('error_code=') ||
+    search.includes('error_code=') ||
+    search.includes('code=')
+  ) {
+    return <ResetPassword />;
+  }
+  return <LandingPage />;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<RootRouteHandler />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/google-callback" element={<GoogleCallback />} />
