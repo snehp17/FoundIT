@@ -33,6 +33,7 @@ export default function SupportWidget() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showEscalate, setShowEscalate] = useState(false);
+  const [escalateFailed, setEscalateFailed] = useState(false);
   const bottomRef = useRef();
   const navigate = useNavigate();
 
@@ -59,7 +60,7 @@ export default function SupportWidget() {
       setMessages(prev => [...prev, { role: 'assistant', content: response.data.reply }]);
       
       // Show escalation option after first user interaction
-      if (!showEscalate) setShowEscalate(true);
+      if (!showEscalate && !escalateFailed) setShowEscalate(true);
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Oops, I am having trouble connecting to the server. Please try again.' }]);
     } finally {
@@ -80,6 +81,8 @@ export default function SupportWidget() {
     } catch (err) {
       console.error(err);
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, we could not find an available admin for your university at this moment.' }]);
+      setShowEscalate(false);
+      setEscalateFailed(true);
     } finally {
       setLoading(false);
     }
