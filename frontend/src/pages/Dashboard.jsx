@@ -95,7 +95,7 @@ export default function Dashboard() {
                 Good morning, {JSON.parse(localStorage.getItem('user'))?.name?.split(' ')[0] || 'Student'}! 👋
               </h2>
               <p className="text-secondary-400">
-                {JSON.parse(localStorage.getItem('user'))?.university || 'Campus'} · 2 items awaiting your action
+                {JSON.parse(localStorage.getItem('user'))?.university || 'Campus'} · {dynamicStats.matches + dynamicStats.pending} items awaiting your action
               </p>
             </div>
             <div className="flex gap-3">
