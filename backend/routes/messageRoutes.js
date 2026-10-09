@@ -126,6 +126,18 @@ router.post('/', authenticate, async (req, res) => {
       .eq('id', receiver_id)
       .single();
 
+    let receiverEmail = receiverProfile?.email;
+    if (!receiverEmail) {
+      try {
+        const { data: authUser } = await supabase.auth.admin.getUserById(receiver_id);
+        if (authUser && authUser.user && authUser.user.email) {
+          receiverEmail = authUser.user.email;
+        }
+      } catch (err) {
+        console.error('Failed to fetch receiver email fallback from auth.admin:', err);
+      }
+    }
+
     const enrichedMessage = {
       ...message,
       sender: { id: req.user.id, name: req.user.name },
@@ -144,9 +156,9 @@ router.post('/', authenticate, async (req, res) => {
     if (notifError) console.error("Error creating message notification:", notifError);
 
     // Send email alert
-    if (receiverProfile && receiverProfile.email) {
+    if (receiverEmail) {
       sendChatMessageEmail({
-        to: receiverProfile.email,
+        to: receiverEmail,
         senderName: req.user.name || 'someone',
         peerId: req.user.id
       }).catch(err => console.error("Failed to send chat email:", err));
