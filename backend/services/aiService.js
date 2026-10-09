@@ -39,21 +39,17 @@ async function callGeminiAPI(model, payload) {
   });
 }
 
-async function callGroqAPI(model, messages) {
+async function callPollinationsAPI(model, messages) {
   return new Promise((resolve, reject) => {
-    const key = process.env.GROQ_API_KEY;
-    if (!key) {
-      return reject(new Error('GROQ_API_KEY is not defined in environment variables'));
-    }
-    const url = `https://api.groq.com/openai/v1/chat/completions`;
-    const postData = JSON.stringify({ model, messages });
+    // Pollinations doesn't require an API key and is not region-blocked
+    const url = `https://text.pollinations.ai/openai/v1/chat/completions`;
+    const postData = JSON.stringify({ model: 'openai', messages });
     
     const options = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData),
-        'Authorization': `Bearer ${key}`
+        'Content-Length': Buffer.byteLength(postData)
       }
     };
 
@@ -65,10 +61,10 @@ async function callGroqAPI(model, messages) {
           try {
             resolve(JSON.parse(body));
           } catch (e) {
-            reject(new Error('Failed to parse Groq response JSON'));
+            reject(new Error('Failed to parse Pollinations response JSON'));
           }
         } else {
-          reject(new Error(`Groq API error (Status ${res.statusCode}): ${body}`));
+          reject(new Error(`Pollinations API error (Status ${res.statusCode}): ${body}`));
         }
       });
     });
@@ -99,12 +95,12 @@ async function categorizeItem(title, description) {
 Item Title: ${title}
 Item Description: ${description}`;
 
-    const res = await callGroqAPI('qwen/qwen3.8-27b', [{ role: 'user', content: promptText }]);
+    const res = await callPollinationsAPI('openai', [{ role: 'user', content: promptText }]);
     const text = res.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Invalid response structure from Groq API');
+    if (!text) throw new Error('Invalid response structure from Pollinations API');
     return text.trim();
   } catch (error) {
-    console.error('Error categorizing item with Groq:', error.message);
+    console.error('Error categorizing item with Pollinations:', error.message);
     return 'Other';
   }
 }
@@ -122,12 +118,12 @@ Title: ${title}
 Description: ${description}
 ${attrsString}`;
 
-    const res = await callGroqAPI('qwen/qwen3.8-27b', [{ role: 'user', content: promptText }]);
+    const res = await callPollinationsAPI('openai', [{ role: 'user', content: promptText }]);
     const text = res.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Invalid response structure from Groq API');
+    if (!text) throw new Error('Invalid response structure from Pollinations API');
     return text.trim();
   } catch (error) {
-    console.error('Error generating AI description with Groq:', error.message);
+    console.error('Error generating AI description with Pollinations:', error.message);
     return description;
   }
 }
@@ -194,12 +190,12 @@ Keep responses concise, friendly, and helpful. If a student needs to escalate a 
       }))
     ];
 
-    const res = await callGroqAPI('qwen/qwen3.8-27b', groqMessages);
+    const res = await callPollinationsAPI('openai', groqMessages);
     const text = res.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Invalid response structure from Groq API');
+    if (!text) throw new Error('Invalid response structure from Pollinations API');
     return text.trim();
   } catch (error) {
-    console.error('Error in support chat with Groq:', error.message);
+    console.error('Error in support chat with Pollinations:', error.message);
     
     // Offline / Quota exceeded fallback responses
     if (messages && messages.length > 0) {
@@ -214,6 +210,7 @@ Keep responses concise, friendly, and helpful. If a student needs to escalate a 
       if (userMessage.includes('hello') || userMessage.includes('hi')) {
          return "Hello! I am the FoundIT AI Support Assistant. How can I help you today?";
       }
+    }
     
     return "I am currently running in offline fallback mode because my AI brain is encountering an issue. For basic questions, I can help you report items. For personal issues or fraud, please escalate to your university admin by clicking the button below.";
   }
