@@ -177,9 +177,11 @@ async function generateImageEmbedding(imageUrl) {
 // 5. Support Chat
 async function supportChat(messages) {
   try {
+    const currentTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' });
     const systemPrompt = `You are the FoundIT AI Support Assistant. FoundIT is an AI-powered lost and found platform for university campuses. 
 Your goal is to help students navigate the platform, understand how to report items, explain the AI matching process, and give general advice on recovering lost items.
-Keep responses concise, friendly, and helpful. If a student needs to escalate a complex issue, advise them they can click "Talk to University Admin".`;
+Keep responses concise, friendly, and helpful. If a student needs to escalate a complex issue, advise them they can click "Talk to University Admin".
+The current local time is ${currentTime} (IST).`;
 
     // Convert messages to Groq/OpenAI format
     const groqMessages = [

@@ -27,9 +27,14 @@ function formatMessage(text) {
 
 export default function SupportWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hi there! May we help you with anything on FoundIT today?' }
-  ]);
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('support_chat');
+    return saved ? JSON.parse(saved) : [{ role: 'assistant', content: 'Hi there! May we help you with anything on FoundIT today?' }];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('support_chat', JSON.stringify(messages));
+  }, [messages]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showEscalate, setShowEscalate] = useState(false);
