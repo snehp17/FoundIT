@@ -15,6 +15,20 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectTo = searchParams.get('redirect') || null
+  const [stats, setStats] = useState({ students: '50+', campuses: '3', recoveryRate: '60%' })
+
+  // Fetch platform stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await api.get('/content/stats')
+        setStats(res.data)
+      } catch (err) {
+        console.error('Failed to fetch platform stats:', err)
+      }
+    }
+    fetchStats()
+  }, [])
 
   // If already logged in, send straight to their dashboard
   useEffect(() => {
@@ -198,9 +212,9 @@ export default function LoginPage() {
         {/* Stats */}
         <div className="relative z-10 grid grid-cols-3 gap-4">
           {[
-            { value: '50+', label: 'Students' },
-            { value: '3', label: 'Campuses' },
-            { value: '60%', label: 'Recovery Rate' },
+            { value: stats.students, label: 'Students' },
+            { value: stats.campuses, label: 'Campuses' },
+            { value: stats.recoveryRate, label: 'Recovery Rate' },
           ].map((stat) => (
             <div key={stat.label} className="bg-surface/10 rounded-2xl p-4 backdrop-blur">
               <div className="text-2xl font-bold text-white">{stat.value}</div>

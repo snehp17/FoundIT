@@ -3,6 +3,44 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate, authorize } = require('../middleware/auth');
 
+// ─── PLATFORM STATS (Public) ──────────────────────────────────────────────────
+router.get('/stats', async (req, res) => {
+  try {
+    const [
+      { count: userCount },
+      { data: campuses },
+      { data: items }
+    ] = await Promise.all([
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('profiles').select('university'),
+      supabase.from('items').select('status')
+    ]);
+
+    let uniqueCampuses = 3;
+    if (campuses) {
+      const uSet = new Set(campuses.map(c => c.university).filter(Boolean));
+      if (uSet.size > 0) uniqueCampuses = uSet.size;
+    }
+
+    let recoveryRate = 60;
+    if (items && items.length > 0) {
+      const closed = items.filter(i => i.status === 'Closed').length;
+      recoveryRate = Math.round((closed / items.length) * 100);
+    }
+
+    const studentsCount = (userCount || 50) + '+';
+
+    res.json({
+      students: studentsCount,
+      campuses: uniqueCampuses,
+      recoveryRate: recoveryRate + '%'
+    });
+  } catch (err) {
+    console.error('Stats error:', err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
 // ─── BLOG POSTS (Public) ──────────────────────────────────────────────────────
 
 router.get('/blog', async (req, res) => {
