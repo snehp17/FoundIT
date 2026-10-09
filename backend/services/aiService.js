@@ -39,6 +39,46 @@ async function callGeminiAPI(model, payload) {
   });
 }
 
+async function callGroqAPI(model, messages) {
+  return new Promise((resolve, reject) => {
+    const key = process.env.GROQ_API_KEY;
+    if (!key) {
+      return reject(new Error('GROQ_API_KEY is not defined in environment variables'));
+    }
+    const url = `https://api.groq.com/openai/v1/chat/completions`;
+    const postData = JSON.stringify({ model, messages });
+    
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        'Authorization': `Bearer ${key}`
+      }
+    };
+
+    const req = https.request(url, options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(new Error('Failed to parse Groq response JSON'));
+          }
+        } else {
+          reject(new Error(`Groq API error (Status ${res.statusCode}): ${body}`));
+        }
+      });
+    });
+
+    req.on('error', (e) => reject(e));
+    req.write(postData);
+    req.end();
+  });
+}
+
 // Dynamic import for ES module @xenova/transformers
 let pipeline;
 let env;
@@ -59,22 +99,12 @@ async function categorizeItem(title, description) {
 Item Title: ${title}
 Item Description: ${description}`;
 
-    const payload = {
-      contents: [{
-        parts: [{ text: promptText }]
-      }],
-      generationConfig: {
-        maxOutputTokens: 100,
-        temperature: 0.2
-      }
-    };
-
-    const res = await callGeminiAPI('gemini-3.6-flash', payload);
-    const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Invalid response structure from Gemini API');
+    const res = await callGroqAPI('llama3-8b-8192', [{ role: 'user', content: promptText }]);
+    const text = res.choices?.[0]?.message?.content;
+    if (!text) throw new Error('Invalid response structure from Groq API');
     return text.trim();
   } catch (error) {
-    console.error('Error categorizing item with Gemini:', error.message);
+    console.error('Error categorizing item with Groq:', error.message);
     return 'Other';
   }
 }
@@ -92,22 +122,12 @@ Title: ${title}
 Description: ${description}
 ${attrsString}`;
 
-    const payload = {
-      contents: [{
-        parts: [{ text: promptText }]
-      }],
-      generationConfig: {
-        maxOutputTokens: 500,
-        temperature: 0.2
-      }
-    };
-
-    const res = await callGeminiAPI('gemini-3.6-flash', payload);
-    const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Invalid response structure from Gemini API');
+    const res = await callGroqAPI('llama3-8b-8192', [{ role: 'user', content: promptText }]);
+    const text = res.choices?.[0]?.message?.content;
+    if (!text) throw new Error('Invalid response structure from Groq API');
     return text.trim();
   } catch (error) {
-    console.error('Error generating AI description with Gemini:', error.message);
+    console.error('Error generating AI description with Groq:', error.message);
     return description;
   }
 }
@@ -165,29 +185,21 @@ async function supportChat(messages) {
 Your goal is to help students navigate the platform, understand how to report items, explain the AI matching process, and give general advice on recovering lost items.
 Keep responses concise, friendly, and helpful. If a student needs to escalate a complex issue, advise them they can click "Talk to University Admin".`;
 
-    // Map OpenAI roles to Gemini roles ('user' and 'model')
-    const contents = messages.map(msg => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    }));
+    // Convert messages to Groq/OpenAI format
+    const groqMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages.map(msg => ({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content
+      }))
+    ];
 
-    const payload = {
-      contents: contents,
-      systemInstruction: {
-        parts: [{ text: systemPrompt }]
-      },
-      generationConfig: {
-        maxOutputTokens: 1024,
-        temperature: 0.7
-      }
-    };
-
-    const res = await callGeminiAPI('gemini-3.6-flash', payload);
-    const text = res.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Invalid response structure from Gemini API');
+    const res = await callGroqAPI('llama3-8b-8192', groqMessages);
+    const text = res.choices?.[0]?.message?.content;
+    if (!text) throw new Error('Invalid response structure from Groq API');
     return text.trim();
   } catch (error) {
-    console.error('Error in support chat with Gemini:', error.message);
+    console.error('Error in support chat with Groq:', error.message);
     
     // Offline / Quota exceeded fallback responses
     if (messages && messages.length > 0) {
