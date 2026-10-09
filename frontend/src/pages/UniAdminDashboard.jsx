@@ -23,6 +23,7 @@ export default function UniAdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [superAdminError, setSuperAdminError] = useState('')
   const [studentSearch, setStudentSearch] = useState('')
+  const [showAllStudents, setShowAllStudents] = useState(false)
 
   // Selected Student for Security / Fraud Detail Audit Modal
   const [auditStudent, setAuditStudent] = useState(null)
@@ -199,6 +200,8 @@ export default function UniAdminDashboard() {
     );
   });
 
+  const displayedStudents = showAllStudents ? filteredStudents : filteredStudents.slice(0, 10);
+
   return (
     <AppLayout title="University Admin Dashboard">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -276,7 +279,7 @@ export default function UniAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-secondary-100 text-sm">
-                  {filteredStudents.map((s) => (
+                  {displayedStudents.map((s) => (
                     <tr key={s.id} className="hover:bg-secondary-50 transition-colors">
                       <td className="py-3 pl-2 font-medium text-secondary-900 flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
@@ -329,7 +332,7 @@ export default function UniAdminDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {filteredStudents.length === 0 && (
+                  {displayedStudents.length === 0 && (
                     <tr>
                       <td colSpan="7" className="py-8 text-center text-sm text-secondary-400">
                         No student records match your search query.
@@ -338,6 +341,17 @@ export default function UniAdminDashboard() {
                   )}
                 </tbody>
               </table>
+            )}
+            
+            {!loading && filteredStudents.length > 10 && (
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={() => setShowAllStudents(!showAllStudents)}
+                  className="text-sm font-medium text-primary hover:text-primary-700 flex items-center gap-2 px-4 py-2 rounded-full hover:bg-primary/5 transition-colors"
+                >
+                  {showAllStudents ? 'Show Less' : `View All ${filteredStudents.length} Students`}
+                </button>
+              </div>
             )}
           </div>
         </div>
