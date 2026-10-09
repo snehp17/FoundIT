@@ -35,6 +35,9 @@ app.use('/api/recovery', recoveryRoutes);
 app.get('/', (req, res) => {
   res.send('API Running');
 });
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', matching: 'report-matching-v1', alerts: 'in-app' });
+});
 
 const PORT = process.env.PORT || 5000;
 

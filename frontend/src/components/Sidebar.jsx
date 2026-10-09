@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, Search, PlusCircle, PackageSearch, MessageSquare,
-  Bell, Settings, User, LogOut, ChevronLeft, ChevronRight,
-  MapPin, BarChart2, Shield, Compass, TrendingUp
+  Bell, LogOut, ChevronLeft, ChevronRight,
+  MapPin, BarChart2, Shield, TrendingUp
 } from 'lucide-react'
 
 const studentItems = [
@@ -31,6 +31,7 @@ const superAdminItems = [
 const uniAdminItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/uni-admin' },
   { icon: Search, label: 'Browse Items', path: '/items' },
+  { icon: TrendingUp, label: 'Smart Matches', path: '/matches' },
   { icon: MessageSquare, label: 'Secure Chat', path: '/chat' },
   { icon: Bell, label: 'Notifications', path: '/notifications' },
   { icon: BarChart2, label: 'Analytics', path: '/analytics' },
@@ -40,16 +41,13 @@ const uniAdminItems = [
 export default function Sidebar({ collapsed, setCollapsed, unreadCount = 0 }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [user, setUser] = useState(null)
-
-  useEffect(() => {
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
-      try {
-        setUser(JSON.parse(userStr))
-      } catch (e) { }
+  const [user] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user'))
+    } catch {
+      return null
     }
-  }, [])
+  })
 
   const role = user?.role || 'student'
   const baseItems = role === 'super_admin' ? superAdminItems : role === 'university_admin' ? uniAdminItems : studentItems
