@@ -9,9 +9,9 @@ export const getApiBaseUrl = () => {
   if (isLocal) {
     return envUrl || 'http://localhost:5000/api';
   }
-  // Deployed production environment: fallback to Azure App Service backend if envUrl is missing or points to localhost
+  // Use the production backend when no deploy-time URL is provided.
   if (!envUrl || envUrl.includes('localhost')) {
-    return 'https://foundit-rg-ftczafanfvcmeqhv.eastasia-01.azurewebsites.net/api';
+    return 'https://foundit-backend-new-gkcwhyg9gzgqe2d8.eastasia-01.azurewebsites.net/api';
   }
   return envUrl;
 };

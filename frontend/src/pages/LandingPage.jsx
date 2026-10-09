@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion, useInView, useAnimation, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
-import api from '../api'
+import api, { getApiBaseUrl, getBackendOrigin } from '../api'
 import {
   Search, Upload, Brain, ShieldCheck, MessageSquare, Bell,
   BarChart2, QrCode, TrendingUp, ArrowRight, CheckCircle2,
@@ -977,14 +977,14 @@ export default function LandingPage() {
                 <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
                 FoundIT v2 REST API Specification
               </span>
-              <span>Host: http://localhost:5000</span>
+              <span>Host: {getBackendOrigin()}</span>
             </div>
             <div className="space-y-4">
               <div>
                 <div className="text-accent font-semibold mb-1">GET /api/items</div>
                 <div className="text-secondary-300 text-xs">// Fetch active lost/found listings filtered by university_id</div>
                 <div className="bg-black/50 p-3 rounded-xl text-xs text-green-400 overflow-x-auto">
-                  {`curl -X GET "http://localhost:5000/api/items?type=LOST" \\
+                  {`curl -X GET "${getApiBaseUrl()}/items?type=LOST" \\
   -H "Authorization: Bearer <JWT_TOKEN>"`}
                 </div>
               </div>

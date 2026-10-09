@@ -235,7 +235,7 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     // Use supabaseAuth (anon key) — resetPasswordForEmail does NOT work with the service role key
-    const frontendUrl = process.env.FRONTEND_URL || 'https://black-forest-0c46fe800.azurestaticapps.net';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://black-forest-0c46fe800.6.azurestaticapps.net';
     const { error } = await supabaseAuth.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
       redirectTo: `${frontendUrl}/reset-password`,
     });
@@ -297,7 +297,7 @@ router.post("/reset-password", async (req, res) => {
 router.get("/google", async (req, res) => {
   try {
     const rawReferer = req.headers.referer || req.headers.origin || '';
-    let frontendUrl = process.env.FRONTEND_URL || 'https://black-forest-0c46fe800.azurestaticapps.net';
+    let frontendUrl = process.env.FRONTEND_URL || 'https://black-forest-0c46fe800.6.azurestaticapps.net';
     if (rawReferer) {
       try {
         const parsed = new URL(rawReferer);

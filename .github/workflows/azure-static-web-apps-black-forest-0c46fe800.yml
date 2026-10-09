@@ -19,14 +19,13 @@ jobs:
         with:
           submodules: true
           lfs: false
-      - name: Debug Dist Folder
+      - name: Build frontend
         env:
-          VITE_API_URL: https://foundit-rg-ftczafanfvcmeqhv.eastasia-01.azurewebsites.net/api
+          VITE_API_URL: https://foundit-backend-new-gkcwhyg9gzgqe2d8.eastasia-01.azurewebsites.net/api
         run: |
           cd frontend
-          npm install
+          npm ci
           npm run build
-          ls -la dist
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -42,8 +41,6 @@ jobs:
           skip_app_build: true
           production_branch: "main"
           ###### End of Repository/Build Configurations ######
-        env:
-          VITE_API_URL: https://foundit-rg-ftczafanfvcmeqhv.eastasia-01.azurewebsites.net/api
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
