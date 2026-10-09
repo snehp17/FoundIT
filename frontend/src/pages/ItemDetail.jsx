@@ -5,7 +5,7 @@ import AppLayout from '../components/AppLayout'
 import api, { getBackendOrigin } from '../api'
 import {
   MapPin, Clock, Tag, Brain, ShieldCheck, MessageSquare,
-  ChevronRight, CheckCircle2, Circle, ArrowRight, Share2, Flag, Loader
+  ChevronRight, CheckCircle2, Circle, ArrowRight, Share2, Flag, Loader, RefreshCw
 } from 'lucide-react'
 
 
@@ -15,6 +15,29 @@ export default function ItemDetail() {
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState(null)
+  const [rematching, setRematching] = useState(false)
+  const [matchingMessage, setMatchingMessage] = useState('')
+
+  const retryMatching = async () => {
+    setRematching(true)
+    setMatchingMessage('')
+    try {
+      const { data } = await api.post(`/items/${id}/rematch`)
+      if (data.matching.status !== 'complete') {
+        setMatchingMessage('Matching is still incomplete. Please try again later.')
+      } else {
+        setMatchingMessage(data.matching.matchesCreated
+          ? `${data.matching.matchesCreated} new potential match found.`
+          : 'Matching completed. Any existing matches and alerts are up to date.')
+        const refreshed = await api.get(`/items/${id}`)
+        setItem(refreshed.data)
+      }
+    } catch (error) {
+      setMatchingMessage(error.response?.data?.message || 'Could not retry matching. Please try again later.')
+    } finally {
+      setRematching(false)
+    }
+  }
 
   const getImageUrl = (img) => {
     if (!img) return '';
@@ -62,12 +85,12 @@ export default function ItemDetail() {
 
   const createdAt = item.created_at ? new Date(item.created_at) : new Date();
   
-  // Create a dynamic timeline based on the item's creation date and status
+  const firstMatch = item.matches?.[0]
+  // Show the real match state rather than an estimated match time.
   const timeline = [
     { label: 'Reported', time: createdAt.toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}), done: true },
-    { label: 'Categorized by AI', time: new Date(createdAt.getTime() + 60000).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}), done: true },
-    { label: 'Matching Started', time: new Date(createdAt.getTime() + 65000).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'}), done: true },
-    { label: 'Match Found', time: item.status === 'MATCHED' || item.status === 'RECOVERED' ? 'Yes' : 'In Progress', done: item.status === 'MATCHED' || item.status === 'RECOVERED', highlight: item.status === 'MATCHED' },
+    { label: 'Matching Started', time: 'After report submission', done: true },
+    { label: 'Potential Match Found', time: firstMatch ? new Date(firstMatch.created_at).toLocaleString() : 'No match yet', done: !!firstMatch, highlight: !!firstMatch },
     { label: 'Verification Pending', time: item.status === 'VERIFYING' ? 'Awaiting' : '—', done: item.status === 'VERIFYING' || item.status === 'RECOVERED' },
     { label: 'Secure Handover', time: item.status === 'RECOVERED' ? 'Completed' : '—', done: item.status === 'RECOVERED' },
     { label: 'Recovery Completed', time: item.status === 'RECOVERED' ? 'Completed' : '—', done: item.status === 'RECOVERED' },
@@ -196,10 +219,19 @@ export default function ItemDetail() {
                     </Link>
                   </>
                 ) : (
-                  <Link to="/matches" className="btn-primary w-full justify-center">
-                    <Brain className="w-4 h-4" />
-                    Review AI Matches
-                  </Link>
+                  <>
+                    <Link to="/matches" className="btn-primary w-full justify-center">
+                      <Brain className="w-4 h-4" />
+                      Review AI Matches
+                    </Link>
+                    {item.status === 'Active' && (
+                      <button onClick={retryMatching} disabled={rematching} className="btn-secondary w-full justify-center">
+                        <RefreshCw className={`w-4 h-4 ${rematching ? 'animate-spin' : ''}`} />
+                        {rematching ? 'Checking matches...' : 'Retry matching'}
+                      </button>
+                    )}
+                    {matchingMessage && <p className="text-xs text-secondary-600">{matchingMessage}</p>}
+                  </>
                 )}
               </div>
             </motion.div>

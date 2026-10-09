@@ -3,8 +3,8 @@ const router = express.Router();
 const multer = require("multer");
 const supabase = require("../config/supabase");
 const { authenticate } = require("../middleware/auth");
-const { categorizeItem, autoDescribe, generateTextEmbedding, generateImageEmbedding, computeMatchScore } = require("../services/aiService");
-const path = require('path');
+const { categorizeItem, autoDescribe, generateTextEmbedding, generateImageEmbedding } = require("../services/aiService");
+const { matchReportedItem } = require('../services/matchingService');
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -13,6 +13,9 @@ const upload = multer({ storage: storage });
 router.post("/report", authenticate, upload.array("images", 5), async (req, res) => {
   try {
     const { type, title, description, category, location, date, time, brand, color, secretDetail } = req.body;
+    if (!['LOST', 'FOUND'].includes(type) || !title?.trim() || !req.user.university_id) {
+      return res.status(400).json({ message: 'A report needs a type, title and university.' });
+    }
     let imageFilenames = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
@@ -35,15 +38,13 @@ router.post("/report", authenticate, upload.array("images", 5), async (req, res)
       }
     }
 
-    let finalCategory = category;
+    let finalCategory = category?.trim();
     let expandedDescription = description;
     
-    // AI Integration: Categorize and Expand Description
+    // Keep the category selected by the reporter; use AI only when one was not supplied.
     try {
-      const aiCategory = await categorizeItem(title || 'Untitled', description || '');
-      if (aiCategory) finalCategory = aiCategory;
-      
-      const aiDesc = await autoDescribe(title || 'Untitled', description || '');
+      if (!finalCategory) finalCategory = await categorizeItem(title, description || '');
+      const aiDesc = await autoDescribe(title, description || '');
       if (aiDesc) expandedDescription = aiDesc;
     } catch (aiErr) {
       console.log("AI Text features failed, continuing...", aiErr.message);
@@ -53,7 +54,7 @@ router.post("/report", authenticate, upload.array("images", 5), async (req, res)
     let textEmbedding = null;
     let imageEmbedding = null;
     try {
-      textEmbedding = await generateTextEmbedding(expandedDescription || title);
+      textEmbedding = await generateTextEmbedding([title, description, brand, color].filter(Boolean).join(' '));
       if (imageFilenames.length > 0) {
          // Generate embedding for the first image only for now
          // Pass the Supabase public URL directly
@@ -67,7 +68,7 @@ router.post("/report", authenticate, upload.array("images", 5), async (req, res)
         type: type || 'LOST',
         title: title || 'Untitled',
         description: expandedDescription,
-        category: finalCategory,
+        category: finalCategory || 'Other',
         location,
         date: date || new Date().toISOString().split('T')[0],
         time: time,
@@ -99,118 +100,24 @@ router.post("/report", authenticate, upload.array("images", 5), async (req, res)
       if (embError) console.error("Error inserting embeddings:", embError);
     }
 
-    // --- Smart Match Logic ---
-    if (item.category) {
-      const targetType = item.type === 'FOUND' ? 'LOST' : 'FOUND';
-
-      // Vector Search: Use the text embedding to find semantic matches
-      let targetMap = new Map();
-      let targetItemsError = null;
-
-      if (imageEmbedding) {
-        const { data: imgMatches, error: imgErr } = await supabase
-          .rpc('match_items_image', {
-            query_embedding: imageEmbedding,
-            match_threshold: 0.7,
-            match_count: 5,
-            p_type: targetType,
-            p_university_id: item.university_id
-          });
-        targetItemsError = imgErr;
-        if (imgMatches) {
-          imgMatches.forEach(m => {
-            targetMap.set(m.id, { ...m, image_similarity: m.similarity });
-          });
-        }
-      }
-      
-      if (textEmbedding) {
-        const { data: vectorMatches, error: vectorErr } = await supabase
-          .rpc('match_items_text', {
-            query_embedding: textEmbedding,
-            match_threshold: 0.7, 
-            match_count: 5,
-            p_type: targetType,
-            p_university_id: item.university_id
-          });
-        
-        if (vectorErr && !targetItemsError) targetItemsError = vectorErr;
-        if (vectorMatches) {
-          vectorMatches.forEach(m => {
-            if (targetMap.has(m.id)) {
-              targetMap.get(m.id).similarity = m.similarity;
-            } else {
-              targetMap.set(m.id, { ...m, similarity: m.similarity });
-            }
-          });
-        }
-      }
-      
-      let targetItems = Array.from(targetMap.values());
-      
-      if (!targetItems || targetItems.length === 0 || targetItemsError) {
-        // Fallback to exact category match if pgvector or embeddings failed
-        const { data: exactMatches, error: exactErr } = await supabase
-          .from('items')
-          .select('*')
-          .eq('type', targetType)
-          .eq('category', item.category)
-          .eq('university_id', item.university_id)
-          .eq('status', 'Active');
-        
-        targetItems = exactMatches || [];
-        targetItemsError = exactErr;
-      }
-
-      if (!targetItemsError && targetItems && targetItems.length > 0) {
-        // Save match records to DB + send notifications
-        const matchInserts = [];
-        const notifications = [];
-
-        for (const targetItem of targetItems) {
-          // Compute hybrid score using vector similarity + metadata
-          const textSim = targetItem.similarity ?? null; // from pgvector (0-1)
-          const imgSim = targetItem.image_similarity ?? null;
-          
-          const lostItem = item.type === 'LOST' ? item : targetItem;
-          const foundItem = item.type === 'FOUND' ? item : targetItem;
-          
-          const scores = computeMatchScore(lostItem, foundItem, textSim, imgSim);
-
-          // Only store matches above 50% confidence
-          if (scores.overall_score >= 50) {
-            matchInserts.push({
-              lost_item_id: lostItem.id,
-              found_item_id: foundItem.id,
-              owner_id: lostItem.user_id,
-              finder_id: foundItem.user_id,
-              university_id: item.university_id,
-              ...scores
-            });
-
-            notifications.push({
-              user_id: targetItem.user_id,
-              type: 'match',
-              meta_data: { found_item_id: foundItem.id, lost_item_id: lostItem.id, finder_id: foundItem.user_id },
-              title: 'Potential Match Found!',
-              message: `Your item "${targetItem.title}" might match a newly reported item "${item.title}" with ${scores.overall_score}% confidence. Open Smart Matches to review.`,
-            });
-          }
-        }
-
-        if (matchInserts.length > 0) {
-          const { error: matchErr } = await supabase.from('matches').insert(matchInserts);
-          if (matchErr) console.error('Error saving matches:', matchErr);
-        }
-
-        if (notifications.length > 0) {
-          const { error: notifErr } = await supabase.from('notifications').insert(notifications);
-          if (notifErr) console.error('Error sending match notifications:', notifErr);
-        }
-      }
+    let matching;
+    try {
+      matching = await matchReportedItem(supabase, item, { textEmbedding, imageEmbedding });
+      if (matching.errors.length) console.error('Report matching needs attention:', matching.errors);
+    } catch (matchError) {
+      console.error('Report matching failed:', matchError);
+      matching = { status: 'failed', matchesCreated: 0, notificationsCreated: 0 };
     }
 
-    res.json({ message: "Item reported successfully", item });
+    res.status(201).json({
+      message: 'Item reported successfully',
+      item,
+      matching: {
+        status: matching.status,
+        matchesCreated: matching.matchesCreated,
+        notificationsCreated: matching.notificationsCreated
+      }
+    });
   } catch (error) {
     console.error("Error saving item:", error);
     res.status(500).json({ message: "Server error while saving item: " + error.message });
@@ -263,6 +170,40 @@ router.get("/user/my-reports", authenticate, async (req, res) => {
   }
 });
 
+// Retry matching a saved report without creating another item or duplicate alerts.
+router.post('/:id/rematch', authenticate, async (req, res) => {
+  try {
+    const { data: item, error } = await supabase.from('items')
+      .select('*').eq('id', req.params.id).single();
+    if (error || !item) return res.status(404).json({ message: 'Report not found' });
+    const isUniversityAdmin = req.user.role === 'university_admin' &&
+      req.user.university_id === item.university_id;
+    if (item.user_id !== req.user.id && !isUniversityAdmin) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    if (item.status !== 'Active') {
+      return res.status(409).json({ message: 'Only active reports can be matched' });
+    }
+
+    const { data: embeddings, error: embeddingError } = await supabase.from('item_embeddings')
+      .select('text_embedding,image_embedding').eq('item_id', item.id).maybeSingle();
+    if (embeddingError) console.warn('Stored embeddings unavailable for retry:', embeddingError.message);
+    const matching = await matchReportedItem(supabase, item, {
+      textEmbedding: embeddings?.text_embedding,
+      imageEmbedding: embeddings?.image_embedding
+    });
+    if (matching.errors.length) console.error('Report rematch needs attention:', matching.errors);
+    res.json({ matching: {
+      status: matching.status,
+      matchesCreated: matching.matchesCreated,
+      notificationsCreated: matching.notificationsCreated
+    } });
+  } catch (error) {
+    console.error('Error retrying report matching:', error);
+    res.status(500).json({ message: 'Could not retry report matching' });
+  }
+});
+
 // GET - Single item by ID
 router.get("/:id", authenticate, async (req, res) => {
   try {
@@ -290,7 +231,7 @@ router.get("/:id", authenticate, async (req, res) => {
       // Fetch matches where this item is either the lost or found item
       const { data: itemMatches } = await supabase.from('matches')
         .select(`
-          id, overall_score, created_at, status, 
+          id, lost_item_id, found_item_id, overall_score, created_at, status,
           lost_item:items!lost_item_id(id, title, location, date, type), 
           found_item:items!found_item_id(id, title, location, date, type)
         `)

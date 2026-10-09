@@ -95,7 +95,7 @@ function MatchCard({ match, onAccept, onReject, onViewTracking }) {
               <div className="flex items-center gap-1">
                 <Sparkles className={`w-3 h-3 ${scoreColor}`} />
                 <span className={`text-sm font-bold ${scoreColor}`}>
-                  {score >= 70 ? 'High Confidence' : score >= 45 ? 'Possible Match' : 'Low Match'}
+                  {score >= 85 ? 'Strong Potential Match' : 'Potential Match'}
                 </span>
               </div>
             </div>
@@ -213,7 +213,9 @@ function MatchCard({ match, onAccept, onReject, onViewTracking }) {
         <div className="px-5 pb-4">
           <div className="flex items-center gap-2 text-xs text-secondary-400 bg-secondary-50 rounded-xl p-3">
             <Clock className="w-4 h-4 flex-shrink-0" />
-            Waiting for the item owner to review and accept this match.
+            {match.userRole === 'admin'
+              ? 'The item owner can review and accept this potential match.'
+              : 'Waiting for the item owner to review and accept this match.'}
           </div>
         </div>
       )}
@@ -289,7 +291,15 @@ export default function SmartMatch() {
     navigate(`/tracking/${recoveryId}`)
   }
 
-  const filtered = matches.filter(m => filter === 'all' ? true : m.status === filter)
+  const requestedMatchId = searchParams.get('matchId')
+  const requestedLostId = searchParams.get('lostId')
+  const requestedFoundId = searchParams.get('foundId')
+  const filtered = matches.filter(m => {
+    if (requestedMatchId && m.id !== requestedMatchId) return false
+    if (!requestedMatchId && requestedLostId && m.lost_item_id !== requestedLostId) return false
+    if (!requestedMatchId && requestedFoundId && m.found_item_id !== requestedFoundId) return false
+    return filter === 'all' || m.status === filter
+  })
 
   return (
     <AppLayout title="Smart Matches">
@@ -339,6 +349,11 @@ export default function SmartMatch() {
             </button>
           ))}
         </div>
+        {(requestedMatchId || requestedLostId || requestedFoundId) && (
+          <button onClick={() => navigate('/matches')} className="text-sm text-primary hover:underline self-start">
+            Show all matches
+          </button>
+        )}
 
         {/* Content */}
         {loading ? (

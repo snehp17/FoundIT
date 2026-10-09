@@ -73,14 +73,28 @@ export default function Reportfound() {
         formData.append('images', file);
       });
       
-      await api.post('/items/report', formData, {
+      const response = await api.post('/items/report', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${user.token}`
         }
       });
       
-      navigate('/dashboard');
+      let matching = response.data.matching;
+      if (matching?.status !== 'complete') {
+        try {
+          const retry = await api.post(`/items/${response.data.item.id}/rematch`);
+          matching = retry.data.matching;
+        } catch (retryError) {
+          console.error('Matching retry failed', retryError);
+        }
+      }
+      if (matching?.status !== 'complete') {
+        alert('Your report was saved, but matching alerts need another try. Use Retry matching on your report page.');
+        navigate(`/items/${response.data.item.id}`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || 'Error reporting item');

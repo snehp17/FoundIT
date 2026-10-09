@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
-import { Brain, CheckCircle2, Bell, Info, Check, Trash2, Filter } from 'lucide-react'
+import { Brain, CheckCircle2, Bell, Info, Check, Trash2 } from 'lucide-react'
 import api from '../api'
 
 function timeAgo(dateString) {
@@ -50,20 +50,15 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchNotifications();
+    let active = true;
+    const refresh = () => api.get('/notifications')
+      .then(res => { if (active) setNotifs(res.data || []); })
+      .catch(err => console.error('Error fetching notifications', err))
+      .finally(() => { if (active) setLoading(false); });
+    refresh();
+    const interval = setInterval(refresh, 5000);
+    return () => { active = false; clearInterval(interval); };
   }, [])
-
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/notifications');
-      setNotifs(res.data || []);
-    } catch (err) {
-      console.error('Error fetching notifications', err);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const markAllRead = async () => {
     try {
@@ -153,7 +148,11 @@ export default function Notifications() {
                           exit={{ opacity: 0, x: 20, height: 0 }}
                           onClick={() => {
                             if (notif.type === 'match' && notif.meta_data) {
-                              navigate(`/matches?foundId=${notif.meta_data.found_item_id}&lostId=${notif.meta_data.lost_item_id}`)
+                              const { match_id, found_item_id, lost_item_id } = notif.meta_data;
+                              const params = match_id
+                                ? `matchId=${encodeURIComponent(match_id)}`
+                                : `foundId=${encodeURIComponent(found_item_id)}&lostId=${encodeURIComponent(lost_item_id)}`;
+                              navigate(`/matches?${params}`)
                             }
                           }}
                           className={`bg-surface rounded-2xl border shadow-md p-4 flex items-start gap-4 ${notif.is_read ? 'border-secondary-100' : 'border-primary/20 bg-primary-50/30'} ${notif.type === 'match' ? 'cursor-pointer hover:border-primary/50' : ''}`}

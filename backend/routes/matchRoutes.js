@@ -29,16 +29,17 @@ async function enrichMatch(match) {
   };
 }
 
-// GET /api/matches — list all matches for current user (as owner or finder)
+// GET /api/matches — reports for either reporter, or a university's admin
 router.get('/', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
-
-    const { data: matches, error } = await supabase
-      .from('matches')
-      .select('*')
-      .or(`owner_id.eq.${userId},finder_id.eq.${userId}`)
-      .order('created_at', { ascending: false });
+    let query = supabase.from('matches').select('*');
+    if (req.user.role === 'university_admin' && req.user.university_id) {
+      query = query.eq('university_id', req.user.university_id);
+    } else {
+      query = query.or(`owner_id.eq.${userId},finder_id.eq.${userId}`);
+    }
+    const { data: matches, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
     if (!matches || matches.length === 0) return res.json([]);
@@ -47,7 +48,7 @@ router.get('/', authenticate, async (req, res) => {
     const enriched = await Promise.all(matches.map(enrichMatch));
     const finalMatches = enriched.map(m => ({
       ...m,
-      userRole: m.owner_id === userId ? 'owner' : 'finder'
+      userRole: m.owner_id === userId ? 'owner' : m.finder_id === userId ? 'finder' : 'admin'
     }));
     res.json(finalMatches);
   } catch (err) {
@@ -70,7 +71,9 @@ router.get('/:id', authenticate, async (req, res) => {
 
     if (error || !match) return res.status(404).json({ message: 'Match not found' });
 
-    if (match.owner_id !== userId && match.finder_id !== userId) {
+    const isUniversityAdmin = req.user.role === 'university_admin' &&
+      req.user.university_id === match.university_id;
+    if (match.owner_id !== userId && match.finder_id !== userId && !isUniversityAdmin) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -84,7 +87,7 @@ router.get('/:id', authenticate, async (req, res) => {
       .single();
 
     enriched.recovery = recovery || null;
-    enriched.userRole = match.owner_id === userId ? 'owner' : 'finder';
+    enriched.userRole = match.owner_id === userId ? 'owner' : match.finder_id === userId ? 'finder' : 'admin';
 
     res.json(enriched);
   } catch (err) {
