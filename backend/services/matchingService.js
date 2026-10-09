@@ -1,4 +1,5 @@
 const { computeMatchScore } = require('./aiService');
+const { sendMatchEmail } = require('./emailService');
 
 const PAGE_SIZE = 250;
 const MIN_MATCH_SCORE = 70;
@@ -144,29 +145,34 @@ async function findOrCreateMatch(supabase, lostItem, foundItem, universityId, sc
 
 async function ensureNotification(supabase, recipient, match, lostItem, foundItem, score) {
   const pair = { lost_item_id: lostItem.id, found_item_id: foundItem.id };
-  const { data: existing, error: lookupError } = await supabase.from('notifications')
-    .select('id').eq('user_id', recipient.id).eq('type', 'match')
+  const lookup = () => supabase.from('notifications')
+    .select('id,meta_data').eq('user_id', recipient.id).eq('type', 'match')
     .contains('meta_data', pair).limit(1);
+  const { data: existing, error: lookupError } = await lookup();
   if (lookupError) throw lookupError;
-  if (existing?.length) return false;
+  if (existing?.length) return { notification: existing[0], created: false };
 
   const isAdmin = recipient.role === 'university_admin';
   const message = isAdmin
     ? `A lost report "${lostItem.title}" may match a found report "${foundItem.title}" (${score}% match score). Review Smart Matches.`
     : `Your report may match "${recipient.id === lostItem.user_id ? foundItem.title : lostItem.title}" (${score}% match score). Open Smart Matches to review.`;
-  const { error } = await supabase.from('notifications').insert([{
+  const { data: notification, error } = await supabase.from('notifications').insert([{
     user_id: recipient.id,
     type: 'match',
     title: 'Potential Match Found!',
     message,
     meta_data: { ...pair, match_id: match.id }
-  }]);
-  if (error?.code === '23505') return false;
+  }]).select('id,meta_data').single();
+  if (error?.code === '23505') {
+    const { data: raced, error: raceError } = await lookup();
+    if (raceError) throw raceError;
+    if (raced?.length) return { notification: raced[0], created: false };
+  }
   if (error) throw error;
-  return true;
+  return { notification, created: true };
 }
 
-async function matchReportedItem(supabase, item, embeddings = {}) {
+async function matchReportedItem(supabase, item, embeddings = {}, emailSender = sendMatchEmail) {
   if (!['LOST', 'FOUND'].includes(item.type) || !item.university_id) {
     throw new Error('The report needs a valid type and university before matching.');
   }
@@ -176,11 +182,18 @@ async function matchReportedItem(supabase, item, embeddings = {}) {
     activeCandidates(supabase, item)
   ]);
   const { data: admins, error: adminError } = await supabase.from('profiles')
-    .select('id').eq('university_id', item.university_id).eq('role', 'university_admin');
+    .select('id,email').eq('university_id', item.university_id).eq('role', 'university_admin');
+  const { data: reporters, error: reporterError } = await supabase.from('profiles')
+    .select('id,email').in('id', [item.user_id, ...candidates.map(candidate => candidate.user_id)]);
+  const emails = new Map((reporters || []).map(profile => [profile.id, profile.email]));
 
   let matchesCreated = 0;
   let notificationsCreated = 0;
-  const errors = adminError ? [`Could not find university admins: ${adminError.message}`] : [];
+  let emailsSent = 0;
+  const errors = [
+    ...(adminError ? [`Could not find university admins: ${adminError.message}`] : []),
+    ...(reporterError ? [`Could not find reporter emails: ${reporterError.message}`] : [])
+  ];
   for (const candidate of candidates) {
     const scores = eligibleMatch(item, candidate, vectorScores.get(candidate.id));
     if (!scores) continue;
@@ -192,14 +205,30 @@ async function matchReportedItem(supabase, item, embeddings = {}) {
         if (created) matchesCreated++;
         if (match.status !== 'pending') return;
         const recipients = new Map([
-          [lostItem.user_id, { id: lostItem.user_id, role: 'owner' }],
-          [foundItem.user_id, { id: foundItem.user_id, role: 'finder' }],
-          ...(admins || []).map(admin => [admin.id, { id: admin.id, role: 'university_admin' }])
+          [lostItem.user_id, { id: lostItem.user_id, role: 'owner', email: emails.get(lostItem.user_id) }],
+          [foundItem.user_id, { id: foundItem.user_id, role: 'finder', email: emails.get(foundItem.user_id) }],
+          ...(admins || []).map(admin => [admin.id, { id: admin.id, role: 'university_admin', email: admin.email }])
         ]);
         for (const recipient of recipients.values()) {
           try {
-            if (await ensureNotification(supabase, recipient, match, lostItem, foundItem, scores.overall_score)) {
-              notificationsCreated++;
+            const { notification, created } = await ensureNotification(
+              supabase, recipient, match, lostItem, foundItem, scores.overall_score
+            );
+            if (created) notificationsCreated++;
+            if (notification.meta_data?.email_sent_at) continue;
+            try {
+              const messageId = await emailSender({ to: recipient.email, matchId: match.id });
+              const { error: updateError } = await supabase.from('notifications').update({
+                meta_data: {
+                  ...notification.meta_data,
+                  email_sent_at: new Date().toISOString(),
+                  email_message_id: messageId
+                }
+              }).eq('id', notification.id);
+              if (updateError) throw updateError;
+              emailsSent++;
+            } catch (emailError) {
+              errors.push(`Email for ${recipient.role}: ${emailError.message}`);
             }
           } catch (error) {
             errors.push(`Notification for ${recipient.role}: ${error.message}`);
@@ -215,6 +244,7 @@ async function matchReportedItem(supabase, item, embeddings = {}) {
     status: errors.length ? 'partial' : 'complete',
     matchesCreated,
     notificationsCreated,
+    emailsSent,
     errors
   };
 }
