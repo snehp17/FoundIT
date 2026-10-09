@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate, userCache } = require('../middleware/auth');
+const { sendChatMessageEmail } = require('../services/emailService');
 
 const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.SUPABASE_URL || 'https://fnspjghibqohshfulnah.supabase.co';
@@ -121,7 +122,7 @@ router.post('/', authenticate, async (req, res) => {
 
     const { data: receiverProfile } = await supabase
       .from('profiles')
-      .select('id, name')
+      .select('id, name, email')
       .eq('id', receiver_id)
       .single();
 
@@ -141,6 +142,15 @@ router.post('/', authenticate, async (req, res) => {
       }]);
     
     if (notifError) console.error("Error creating message notification:", notifError);
+
+    // Send email alert
+    if (receiverProfile && receiverProfile.email) {
+      sendChatMessageEmail({
+        to: receiverProfile.email,
+        senderName: req.user.name || 'someone',
+        peerId: req.user.id
+      }).catch(err => console.error("Failed to send chat email:", err));
+    }
 
     res.json({ message: 'Message sent successfully', data: enrichedMessage });
   } catch (error) {
