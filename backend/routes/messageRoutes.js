@@ -149,8 +149,10 @@ router.post('/', authenticate, async (req, res) => {
       .from('notifications')
       .insert([{
         user_id: receiver_id,
+        type: 'chat',
         title: 'New Secure Message',
-        message: `You have a new message from ${req.user.name || 'someone'}.`
+        message: `You have a new message from ${req.user.name || 'someone'}.`,
+        meta_data: { peerId: req.user.id }
       }]);
     
     if (notifError) console.error("Error creating message notification:", notifError);

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import AppLayout from '../components/AppLayout'
-import { Brain, CheckCircle2, Bell, Info, Check, Trash2 } from 'lucide-react'
+import { Brain, CheckCircle2, Bell, Info, Check, Trash2, MessageSquare } from 'lucide-react'
 import api from '../api'
 
 function timeAgo(dateString) {
@@ -31,6 +31,7 @@ function getGroup(dateString) {
 
 function getIconForType(type) {
   if (type === 'match') return Brain;
+  if (type === 'chat') return MessageSquare;
   if (type === 'system') return Info;
   if (type === 'alert') return Bell;
   return CheckCircle2; 
@@ -38,6 +39,7 @@ function getIconForType(type) {
 
 function getColorForType(type) {
   if (type === 'match') return 'text-primary bg-primary/10';
+  if (type === 'chat') return 'text-accent bg-accent/10';
   if (type === 'system') return 'text-secondary-500 bg-secondary-100';
   if (type === 'alert') return 'text-warning bg-warning/10';
   return 'text-accent bg-accent/10'; 
@@ -153,9 +155,11 @@ export default function Notifications() {
                                 ? `matchId=${encodeURIComponent(match_id)}`
                                 : `foundId=${encodeURIComponent(found_item_id)}&lostId=${encodeURIComponent(lost_item_id)}`;
                               navigate(`/matches?${params}`)
+                            } else if (notif.type === 'chat' && notif.meta_data?.peerId) {
+                              navigate(`/chat?peerId=${encodeURIComponent(notif.meta_data.peerId)}`)
                             }
                           }}
-                          className={`bg-surface rounded-2xl border shadow-md p-4 flex items-start gap-4 ${notif.is_read ? 'border-secondary-100' : 'border-primary/20 bg-primary-50/30'} ${notif.type === 'match' ? 'cursor-pointer hover:border-primary/50' : ''}`}
+                          className={`bg-surface rounded-2xl border shadow-md p-4 flex items-start gap-4 ${notif.is_read ? 'border-secondary-100' : 'border-primary/20 bg-primary-50/30'} ${['match', 'chat'].includes(notif.type) ? 'cursor-pointer hover:border-primary/50' : ''}`}
                         >
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
                           <Icon className="w-5 h-5" />
