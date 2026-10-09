@@ -99,7 +99,7 @@ async function categorizeItem(title, description) {
 Item Title: ${title}
 Item Description: ${description}`;
 
-    const res = await callGroqAPI('llama3-8b-8192', [{ role: 'user', content: promptText }]);
+    const res = await callGroqAPI('qwen/qwen3.8-27b', [{ role: 'user', content: promptText }]);
     const text = res.choices?.[0]?.message?.content;
     if (!text) throw new Error('Invalid response structure from Groq API');
     return text.trim();
@@ -122,7 +122,7 @@ Title: ${title}
 Description: ${description}
 ${attrsString}`;
 
-    const res = await callGroqAPI('llama3-8b-8192', [{ role: 'user', content: promptText }]);
+    const res = await callGroqAPI('qwen/qwen3.8-27b', [{ role: 'user', content: promptText }]);
     const text = res.choices?.[0]?.message?.content;
     if (!text) throw new Error('Invalid response structure from Groq API');
     return text.trim();
@@ -194,7 +194,7 @@ Keep responses concise, friendly, and helpful. If a student needs to escalate a 
       }))
     ];
 
-    const res = await callGroqAPI('llama3-8b-8192', groqMessages);
+    const res = await callGroqAPI('qwen/qwen3.8-27b', groqMessages);
     const text = res.choices?.[0]?.message?.content;
     if (!text) throw new Error('Invalid response structure from Groq API');
     return text.trim();
