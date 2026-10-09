@@ -57,7 +57,7 @@ router.get('/', authenticate, async (req, res) => {
     for (const uid of userIds) {
       if (!profileMap.has(uid)) {
         try {
-          const { data: authUser } = await adminSupabase.auth.admin.getUserById(uid);
+          const { data: authUser } = await supabase.auth.admin.getUserById(uid);
           if (authUser && authUser.user) {
             profileMap.set(uid, {
               id: uid,
