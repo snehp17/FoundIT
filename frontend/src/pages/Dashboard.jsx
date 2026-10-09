@@ -18,7 +18,7 @@ export default function Dashboard() {
   const [recentItems, setRecentItems] = useState([])
   const [loadingItems, setLoadingItems] = useState(true)
   const [notifications, setNotifications] = useState([])
-  const [dynamicStats, setDynamicStats] = useState({ active: 0, matches: 0, pending: 0, recovered: 0 })
+  const [dynamicStats, setDynamicStats] = useState({ active: 0, matches: 0, pending: 0, recovered: 0, campusRecoveryRate: 0 })
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -54,7 +54,11 @@ export default function Dashboard() {
         // Recovered = user's closed items
         const recovered = myReports.filter(i => i.status === 'Closed').length
 
-        setDynamicStats({ active: activeReports, matches: aiMatches, pending: pendingClaims, recovered })
+        const campusRecovered = allItems.filter(i => i.status === 'Closed').length;
+        const totalCampus = allItems.length;
+        const campusRecoveryRate = totalCampus > 0 ? Math.round((campusRecovered / totalCampus) * 100) : 0;
+
+        setDynamicStats({ active: activeReports, matches: aiMatches, pending: pendingClaims, recovered, campusRecoveryRate })
 
         // Recent items = only non-closed
         const sorted = allItems.filter(i => i.status !== 'Closed').sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5)
@@ -250,13 +254,13 @@ export default function Dashboard() {
                 <TrendingUp className="w-5 h-5 text-primary" />
                 <span className="text-sm font-semibold text-primary">Campus Recovery Rate</span>
               </div>
-              <div className="text-4xl font-bold text-secondary-900 mb-1">78%</div>
-              <div className="text-xs text-secondary-400 mb-3">↑ 5% from last month</div>
+              <div className="text-4xl font-bold text-secondary-900 mb-1">{dynamicStats.campusRecoveryRate}%</div>
+              <div className="text-xs text-secondary-400 mb-3">Based on all campus reports</div>
               <div className="progress-bar">
                 <motion.div
                   className="progress-fill"
                   initial={{ width: 0 }}
-                  animate={{ width: '78%' }}
+                  animate={{ width: `${dynamicStats.campusRecoveryRate}%` }}
                   transition={{ duration: 1.2, delay: 0.3 }}
                 />
               </div>
