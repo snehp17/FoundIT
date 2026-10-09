@@ -6,7 +6,7 @@ import api from '../api'
 import {
   Package, Users, CheckCircle2, TrendingUp, AlertTriangle,
   BarChart2, MapPin, Clock, ChevronRight, Shield, Eye, Trash2, Edit2,
-  Plus, X, Search, Phone, BookOpen, GraduationCap, FileText, AlertCircle
+  Plus, X, Search, Phone, BookOpen, GraduationCap, FileText, AlertCircle, MessageSquare
 } from 'lucide-react'
 
 const kpisTemplate = [
@@ -297,6 +297,13 @@ export default function UniAdminDashboard() {
                       <td className="py-3 text-secondary-500 text-xs">{s.phone || 'N/A'}</td>
                       <td className="py-3 pr-2 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => navigate(`/chat?peerId=${s.id}&peerName=${encodeURIComponent(s.name)}`)}
+                            className="p-1.5 rounded-lg text-secondary-400 hover:bg-primary/10 hover:text-primary transition-colors"
+                            title="Message Student"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             onClick={() => setAuditStudent(s)}
                             className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium flex items-center gap-1 transition-colors"
