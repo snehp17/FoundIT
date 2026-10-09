@@ -74,15 +74,16 @@ export default function SecureChat() {
           peerName = knownUserNames[peerId]
         }
         
-        const key = `${peerId}_${m.item_id}`
+        const effectiveItemId = m.item_id || 'direct'
+        const key = `${peerId}_${effectiveItemId}`
         
         if (!convMap.has(key)) {
           convMap.set(key, {
             id: key,
             peerId,
-            itemId: m.item_id,
+            itemId: effectiveItemId,
             name: peerName,
-            item: m.item?.title || 'Item',
+            item: m.item_id ? (m.item?.title || 'Item') : 'Direct Message',
             msgs: [],
             lastMsg: '',
             time: '',
@@ -114,15 +115,16 @@ export default function SecureChat() {
       let convList = Array.from(convMap.values())
       
 
-        if (initialPeerId && initialItemId) {
-          const initialKey = `${initialPeerId}_${initialItemId}`
+        if (initialPeerId) {
+          const effectiveItemId = initialItemId || 'direct'
+          const initialKey = `${initialPeerId}_${effectiveItemId}`
           if (!convMap.has(initialKey)) {
              convList.unshift({
                 id: initialKey,
                 peerId: initialPeerId,
-                itemId: initialItemId,
+                itemId: effectiveItemId,
                 name: initialPeerName,
-                item: initialItemTitle,
+                item: initialItemTitle || 'Direct Message',
                 msgs: [],
                 lastMsg: 'Start a conversation...',
                 time: 'Now',
@@ -136,8 +138,9 @@ export default function SecureChat() {
         const currentActive = activeConvRef.current
         let nextActive = null
 
-        if (initialPeerId && initialItemId && !currentActive) {
-          nextActive = convList.find(c => c.id === `${initialPeerId}_${initialItemId}`)
+        if (initialPeerId && !currentActive) {
+          const effectiveItemId = initialItemId || 'direct'
+          nextActive = convList.find(c => c.id === `${initialPeerId}_${effectiveItemId}`)
         } else if (currentActive) {
           nextActive = convList.find(c => c.id === currentActive.id)
         } else if (convList.length > 0) {
@@ -178,7 +181,7 @@ export default function SecureChat() {
     try {
       const res = await api.post('/messages', {
         receiver_id: activeConv.peerId,
-        item_id: activeConv.itemId,
+        item_id: activeConv.itemId === 'direct' ? null : activeConv.itemId,
         text: textToSend
       })
       

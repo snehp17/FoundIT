@@ -95,9 +95,10 @@ router.get('/', authenticate, async (req, res) => {
 // Send a new message
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { receiver_id, item_id, text } = req.body;
+    const { receiver_id, text } = req.body;
+    const item_id = req.body.item_id || null;
 
-    if (!receiver_id || !item_id || !text) {
+    if (!receiver_id || !text) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
