@@ -203,8 +203,7 @@ Keep responses concise, friendly, and helpful. If a student needs to escalate a 
          return "Hello! I am the FoundIT AI Support Assistant. How can I help you today?";
       }
     }
-    
-    return "I am currently running in offline fallback mode because my AI brain is encountering an issue. For basic questions, I can help you report items. For personal issues or fraud, please escalate to your university admin by clicking the button below.";
+    return `[DEBUG ERROR]: ${error.message}`;
   }
 }
 
